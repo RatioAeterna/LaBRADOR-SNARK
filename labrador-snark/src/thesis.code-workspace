@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"name": "lattice-zksnark",
+			"path": "../../../examples/lattice-zksnark"
+		}
+	],
+	"settings": {}
+}
