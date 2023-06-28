@@ -1,3 +1,7 @@
+pub mod util;
+pub mod proofgen;
+
+
 use polynomial::Polynomial;
 extern crate nalgebra as na;
 use na::{Matrix, DMatrix};
@@ -6,20 +10,31 @@ use rand::{Rng, SeedableRng};
 use rand::distributions::Uniform;
 use na::base::DVector;
 use ndarray::{Array2, concatenate};
+use ndarray_linalg::norm;
+use crate::util::*;
+use crate::proofgen::*;
 
-pub fn generate_polynomial() -> Polynomial<i32> {
-    let mut poly = Polynomial::new();
-    let num_terms = rng.gen_range(1, max_degree + 2);
-    for degree in 0..num_terms {
-        let coeff = rng.gen_range(0, q);
-        p.add_coeff(degree, coeff);
-    }
-    poly
-}
-
+/*
 
 // Computes the ring inverse of a polynomial element of R_q
 pub fn conjugation_automorphism(a : Polynomial) -> Polynomial {
+    // first, check that X^d+1 splits into two irreducible factors mod q.
+
+    // we can do this using the Extended Euclidean algorithm:
+
+    // for f in R_q, we find "a" such that (f*a congruent to 1) % x^d+1
+
+    // we need Bezout coefficients of the following form:
+    // f*a + (x^d+1)*b = 1, with gcd(f, x^d+1) = 1
+
+    // step 1: x^d+1 = f*x + r
+
+
+
+
+
+
+    a.mul(b)
 
 
 
@@ -29,15 +44,6 @@ pub fn conjugation_automorphism(a : Polynomial) -> Polynomial {
 
 
 
-// compute the dot product between two lists of 
-pub fn polynomial_vec_inner_product(v1, v2) -> Polynomial<i32> {
-    let result = Polynomial::new();
-    for i in v1.length() {
-        let product = v1[i].mul(&v2[i]);
-        result.add(product);
-    }
-    result
-}
 
 
 
@@ -57,39 +63,8 @@ pub fn create_proof() -> Result<Proof> {
 
     // TODO: these values are totally random at the moment
 
-    // q: modulus of the ring of integers
-    let q : i32 = 128;
     
-    // constants: totally random for now and should be changed later
-    let n : i32 = 128;
-    let r : i32 = 20;
 
-
-    // setting bound for SIS 2-norm
-    let beta_bound : i32 = 65536
-
-    let S= Array2::from_elem((n,r), Polynomial::new()); 
-
-    // Random Generation of Witness matrix S
-    
-    // total summed norm:
-    let mut norm_sum = 0;
-
-
-    for i in 1..r {
-        for j in 1..n {
-            let s_ij = generate_polynomial();
-            S[[i,j]] = s_ij;
-            // add norm to norm sum
-            norm_sum += i32::pow(s_ij.norm(), 2);
-        }
-    }
-
-    // if too big, scale down:
-    if norm_sum > i32::pow(beta_bound,2) {
-        let scale_factor = i32::pow(beta_bound,2) / norm_sum;
-        // TODO for all polynomials: *p *= scale;
-    }
 
 
 
@@ -133,14 +108,14 @@ pub fn create_proof() -> Result<Proof> {
 
     let b : Polynomial = a_product.add(&phi_product);
 
-    let t = Array2::<i32>::zeros((m,r)); // Inner commitment vector 
+    let t = Array2::<i64>::zeros((m,r)); // Inner commitment vector 
 
 
     // Compute inner Ajtai commitments
     // t_i = As_i \in R_q^\kappa (should just be m-dimensional)
     for i in 0..r {
         // TODO this only works if we switch to using MatrixMN instead of Array2.
-        let t_i = A * s.column(i);
+        let t_i = A * S.column(i);
         t.column_mut(i).assign(&t_i);
     }
 
@@ -150,16 +125,85 @@ pub fn create_proof() -> Result<Proof> {
     // JL projection
 
 
-    let projected_vec = jl_projection(&s[..]);
+    let projected_vec = jl_projection(&S[..]);
 
 
-    // TODO: Fiat-Shamir version, full interactive or both?
+    // verifier checks that the ||projected_vec|| <= sqrt(128)*Beta
+    valid_projection: bool = compute_norm(&DVector::from_vec(projected_vec)) <= sqrt(128)*BETA_BOUND);
+    while !valid_projection {
+        println!("Invalid JL Projection: Prover requests a new projection matrix Pi");
+        let projected_vec = jl_projection(&s[..]);
+        valid_projection: bool = compute_norm(&DVector::from_vec(projected_vec)) <= sqrt(128)*BETA_BOUND);
+    }
+
+    println!("Valid JL Projection")
+
+
+
+    // First aggregation step
+
+
+    // verifier must compute psi and omega (k-length random generated for k in 1..ceil(128/log q))
+
+
+
+
+    let L = 1; // should be |F'|, which is... 1, for now?
+
+    let psi: Vec<Vec<i64>> = Vec::new();
+    let omega: Vec<Vec<i64>> = Vec::new();
+
+    for k in 0..ceil(128/ (q as f64).log2() as u64) {
+        // random draw from (Z_q)^L
+        let psi_k = random_sample_Z_q(L, q);
+        let omega_k = random_sample_Z_q(256, q);
+
+        psi.push(psi_k);
+        omega.push(omega_k);
+    }
+
+
+
+
+
+
+
+
+    // Amortization step
+
+    // verifier sends c_i in C, subset of R_q. Prover computes the opening
+    // z = c_1t_1 + ... + c_rt_r
+
+    let z = Array2::<i64>::zeros((m,r)); // Random linear combination
+
+    let C: Vec<Polynomial<i64>> = Vec::new(); // empty vector of challenge polynomials
+
+    for i in 0..(r-1) {
+        // multiply the challenge polynomial c_i by the VECTOR of polynomials t_i, sum all of these together.
+        let c_i : Polynomial = generate_polynomial(); 
+        let z_i = c_i * t.column(i); 
+        z = z + z_i;
+        C.push(c_i);
+    }
+
+
+    // Verifier checks the following:
+    /*
+
+    for i in 0..(r-1) {
+        C.column(i)*t.column
+
+    }
+
+
+    assert!(A*z == );
+    assert!(ndarray_linalg::norm::normalize(z) <= gamma);
+
+
+    */
 
 
 }
-
-// q: the value by which all integer coeffients are modded by
-let q = 
 
 
 // reduce from an R1CS instance (relatively easy to construct)
@@ -179,6 +223,8 @@ pub fn binary_r1cs_reduction(A, B, C, w) {
 
     // Send to verifier. Verifier sends back 
 
+    /*
+
     let phi = 
 
     for i in 1..l {
@@ -186,13 +232,13 @@ pub fn binary_r1cs_reduction(A, B, C, w) {
 
     }
 
+    */
 
     let a_inv = conjugation_automorphism(a);
     let b_inv = conjugation_automorphism(b);
     let c_inv = conjugation_automorphism(c);
     let w_inv = conjugation_automorphism(w);
 }
-
 
 // these have slightly different algorithms
 pub fn arithmetic_r1cs_reduction() {
@@ -204,21 +250,9 @@ pub fn arithmetic_r1cs_reduction() {
 
 
 
-// generates and returns the SIS vector s
-pub fn generate_witness() {
-    
 
 
-
-
-
-
-}
-
-
-
-
-pub fn jl_projection(w: &[i32]) -> Vec<i32> {
+pub fn jl_projection(w: &[i64]) -> Vec<i64> {
 
     // proving knowledge of a long vector w in Z^d without revealing it
 
@@ -272,20 +306,86 @@ pub fn verify_proof() -> Result<(), VerificationError> {
 */
 
 
+*/
+
+/*
+TODO: better organization for testing later.
+Right now we just test a bunch of util / misc. functions here haphazardly.
+*/
+
+#[test]
+fn util_test() {
+    // test polynomial generation
+    let p1 = generate_polynomial(Q, D);
+
+    println!("Random polynomial:");
+    println!("{}", p1.pretty("x"));
+
+
+    // test random sampling Z_q
+    let sample = random_sample_Z_q(Q, 256);
+    println!("String of integers mod q:");
+    println!("{:?}", sample);
+
+    // test scaling polynomial by a float < 1
+    let scale: f32 = 0.5;
+    let p2 = scale_polynomial(p1, scale);
+    println!("Polynomial scaled by {:.32}:", scale);
+    println!("{}", p2.pretty("x"));
+
+    let S = generate_witness();
+    println!("Generated witness matrix S:");
+    for row in S.rows() {
+        for poly in row {
+            println!("{}", poly.pretty("x"));
+        }
+    }
+
+    println!("Testing polynomial vec inner product:");
+    let mut vec_a : Vec<Polynomial<i64>> = vec![];
+    let mut vec_b : Vec<Polynomial<i64>> = vec![];
+    for i in 0..5 {
+        let mut new_poly = Polynomial::new(vec![0i64,1,2,3]);
+        vec_a.push(new_poly.clone());
+        vec_b.push(new_poly);
+    }
+
+    let product : Polynomial<i64> = Polynomial::new(vec![0i64,1,2,3]) * Polynomial::new(vec![0i64,1,2,3]) * Polynomial::new(vec![5i64]);
+
+    let prod_poly = polynomial_vec_inner_product(vec_a, vec_b);
+    assert!(prod_poly == product, "Polynomial inner products are broken.");
+    println!("Polynomial products are working!");
+    println!("{}", prod_poly.pretty("x"));
+}
+
 fn main() {
 
-    // Test JL implementation with a random 1024-dimensional vector
-    let mut rng = rand::rngs::StdRng::seed_from_u64(10); // set a seed for reproducibility
-    let dist = Uniform::new(-100, 100);
-    let my_vec: Vec<i32> = (0..1024).map(|_| rng.sample(&dist)).collect();
-    let projected_vec = jl_projection(&my_vec[..]);
+    println!("Hello, world!");
 
-    let og_norm = f64::from(my_vec.iter().map(|x| x * x).sum::<i32>()).sqrt();
-    let projected_norm = f64::from(projected_vec.iter().map(|x| x * x).sum::<i32>()).sqrt();
 
-    let x: f64 = 30.0;
+    /*
+    // test polynomial generation
+    let p1 = util::generate_polynomial(Q, D);
 
-    println!("Original vector norm: {:.4}", og_norm);
-    println!("Projected vector norm: {:.4}", projected_norm);
-    println!("Projected scaled by sqrt(128): {:.4}", projected_norm*x.sqrt());
+    println!("Random polynomial:");
+    println!("{}", p1.pretty("x"));
+
+
+    // test random sampling Z_q
+    let sample = util::random_sample_Z_q(Q, 256);
+    println!("String of integers mod q:");
+    println!("{:?}", sample);
+
+
+    /*
+    let S = generate_witness();
+    println!("Generated witness matrix S:")
+    for row in S.rows() {
+        for poly in row {
+            println!("{}", poly.pretty("x"));
+        }
+    }
+    */
+    */
 }
+
