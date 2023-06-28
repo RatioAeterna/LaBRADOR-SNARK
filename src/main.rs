@@ -361,8 +361,16 @@ fn util_test() {
 fn main() {
 
     println!("Hello, world!");
-
-
+    let S = generate_witness();
+    println!("Generated witness matrix S:");
+    for row in S.rows() {
+        for poly in row {
+            println!("{}", poly.pretty("x"));
+        }
+    }
+    println!("Generating proof..");
+    proof_gen(S);
+    println!("Generated proof!");
     /*
     // test polynomial generation
     let p1 = util::generate_polynomial(Q, D);
@@ -375,17 +383,8 @@ fn main() {
     let sample = util::random_sample_Z_q(Q, 256);
     println!("String of integers mod q:");
     println!("{:?}", sample);
+    */
 
 
-    /*
-    let S = generate_witness();
-    println!("Generated witness matrix S:")
-    for row in S.rows() {
-        for poly in row {
-            println!("{}", poly.pretty("x"));
-        }
-    }
-    */
-    */
 }
 

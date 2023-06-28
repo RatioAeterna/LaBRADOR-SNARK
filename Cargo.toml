@@ -1,5 +1,5 @@
 [package]
-name = "labrador-snark"
+name = "labrador_snark"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,8 +10,13 @@ edition = "2021"
 name = "LaBRADOR_SNARK"
 path = "src/main.rs"
 
+
+
 [dependencies]
 ff = "0.13"
 polynomial = "0.2.5"
 nalgebra = "*"
 rand = "0.8.4"
+abstalg = "0.1.4"
+ndarray = "0.15.6"
+ndarray-linalg = "0.16.0"
