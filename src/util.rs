@@ -1,3 +1,4 @@
+use ndarray::{Array2, Ix2, concatenate};
 use polynomial::Polynomial;
 use rand::prelude::*;
 use rand::{Rng, SeedableRng};
@@ -16,6 +17,42 @@ pub fn generate_polynomial(q : i64, d : i64) -> Polynomial<i64> {
     let mut poly = Polynomial::new(coefficient_vec);
     poly
 }
+
+/*
+pub fn jl_projection(w: &[i64]) -> Vec<i64> {
+
+    // proving knowledge of a long vector w in Z^d without revealing it
+
+    // Let verifier sample a random linear map Pi: Z^d \to Z^256
+    // entries of Pi are independent and equal to -1,0,1 with probabilities 1/4, 1/2, 1/4
+
+    // sample random map Pi
+
+    let d = w.len();
+    let mut projection_vec = vec![0; 256];
+
+    for i in 0..255 {
+        let mut random_buffer = vec![0;d];
+        for j in 0..(d-1) {
+            if rand::random() {
+                if rand::random() {
+                    random_buffer[i] = 1;
+                }
+                else {
+                    random_buffer[i] = -1;
+                }
+            }
+            else {
+                random_buffer[i] = 0;
+            }
+        }
+        let v1 = DVector::from_vec(random_buffer);
+        let v2 = DVector::from_row_slice(w);
+        projection_vec[i] = v1.dot(&v2);
+    }
+    return projection_vec;
+}
+*/
 
 
 // randomly samples n integers mod q, returns them as a vec
@@ -51,6 +88,23 @@ pub fn polynomial_vec_inner_product(v1: Vec<Polynomial<i64>>, v2: Vec<Polynomial
     for i in 0..v1.len() {
         let product = &v1[i] * &v2[i];
         result = result + product;
+    }
+    result
+}
+
+// compute the matrix product between two polynomial MATRICES (Array2, slightly different)
+pub fn polynomial_matrix_product(m1: Array2<Polynomial<i64>>, m2: Array2<Polynomial<i64>>) -> Array2<Polynomial<i64>> {
+    assert!(m1.shape()[1] == m2.shape()[0], "matrix product not defined on matrices which do not have dimension (m,n) x (n,k), for some m,n,k");
+    let m = m1.shape()[0];
+    let k = m2.shape()[1];
+
+    let mut result = Array2::from_elem(Ix2(m, k), Polynomial::new(vec![])); 
+    for i in 0..m {
+        for j in 0..k {
+            let v1 = m1.row(i).to_vec();
+            let v2 = m1.column(j).to_vec();
+            result[[i,j]] = polynomial_vec_inner_product(v1, v2);
+        }
     }
     result
 }

@@ -1,26 +1,11 @@
-use ndarray::{Array2, Ix2, concatenate};
+use ndarray::{Array2, Ix2, concatenate, Axis};
 use polynomial::Polynomial;
 use rand::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand::distributions::Uniform;
 
 use crate::util::*;
-
-
-// modulus of the ring of integers
-pub const Q: i64 = 128;
-
-// polynomial degree modulus
-pub const D: i64 = 5;
-
-
-// matrix dimensions: totally random for now and should be changed later
-pub const N : usize = 128;
-pub const R : usize = 20;
-
-// setting bound for SIS 2-norm
-pub const BETA_BOUND : i64 = 65536;
-
+use crate::constants::*;
 
 pub fn proof_gen(S: Array2<Polynomial<i64>>) {
     // random generation of the polynomial matrix A
@@ -72,17 +57,23 @@ pub fn proof_gen(S: Array2<Polynomial<i64>>) {
     println!("{}", b.pretty("x"));
 
 
-    let t = Array2::<i64>::zeros((M,R)); // Inner commitment vector 
+    //let t = Array2::<i64>::zeros((M,R)); // Inner commitment vector 
+    //let t = Array2<Polynomial<i64>>::zeros((R,N)); // Inner commitment vector ( After looking at this some more, I think this is the actual dimension. Unclear, however. )
+    let zero_poly = Polynomial::new(vec![0i64]);
+    let mut t = Array2::from_elem((R,N), zero_poly);
 
-    /*
     // Compute inner Ajtai commitments
     // t_i = As_i \in R_q^\kappa (should just be m-dimensional)
-    for i in 0..r {
-        // TODO this only works if we switch to using MatrixMN instead of Array2.
-        let t_i = A * S.column(i);
-        t.column_mut(i).assign(&t_i);
+    for i in 0..N {
+        //let t_i = A.clone().dot(S.t().column(i)); // we need to compute the transpose of S for this product to work (for some reason) // we need to compute the transpose of S for this product to work (for some reason)
+        let t_i = polynomial_matrix_product(A.clone(), S.t().column(i).to_owned().insert_axis(Axis(1))); // we need to compute the transpose of S for this product to work (for some reason) // we need to compute the transpose of S for this product to work (for some reason)
+        println!("A dim {:?}", A.dim());
+        println!("S.t() dim {:?}", S.t().dim());
+        println!("S col dim {:?}", S.t().column(i).dim());
+        println!("t_i dim: {:?}", t_i.dim());
+        t.column_mut(i).assign(&t_i.remove_axis(Axis(1)));
     }
-    */
+    println!("Computed Inner Ajtai Commitments!");
 }
 
 // generates and returns the SIS vector s

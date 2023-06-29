@@ -1,5 +1,6 @@
 pub mod util;
 pub mod proofgen;
+pub mod constants;
 
 
 use polynomial::Polynomial;
@@ -13,6 +14,7 @@ use ndarray::{Array2, concatenate};
 use ndarray_linalg::norm;
 use crate::util::*;
 use crate::proofgen::*;
+use crate::constants::*;
 
 /*
 
