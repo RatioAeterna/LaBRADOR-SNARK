@@ -1,6 +1,7 @@
 pub mod util;
 pub mod proofgen;
 pub mod constants;
+pub mod verification;
 
 
 use polynomial::Polynomial;
