@@ -19,29 +19,6 @@ use crate::constants::*;
 
 /*
 
-// Computes the ring inverse of a polynomial element of R_q
-pub fn conjugation_automorphism(a : Polynomial) -> Polynomial {
-    // first, check that X^d+1 splits into two irreducible factors mod q.
-
-    // we can do this using the Extended Euclidean algorithm:
-
-    // for f in R_q, we find "a" such that (f*a congruent to 1) % x^d+1
-
-    // we need Bezout coefficients of the following form:
-    // f*a + (x^d+1)*b = 1, with gcd(f, x^d+1) = 1
-
-    // step 1: x^d+1 = f*x + r
-
-
-
-
-
-
-    a.mul(b)
-
-
-
-}
 
 
 
@@ -344,6 +321,10 @@ fn util_test() {
         }
     }
 
+    // test norm computation of Array2 of polynomials
+    let witness_norm : f64 = compute_total_norm(S);
+    println!("Computed norm of witness matrix: {:.64}", witness_norm);
+
     println!("Testing polynomial vec inner product:");
     let mut vec_a : Vec<Polynomial<i64>> = vec![];
     let mut vec_b : Vec<Polynomial<i64>> = vec![];
@@ -363,17 +344,22 @@ fn util_test() {
 
 fn main() {
 
-    println!("Hello, world!");
+    println!("LaBRADOR SNARK!");
     let S = generate_witness();
-    println!("Generated witness matrix S:");
+    println!("Generated witness matrix S");
+    /*
     for row in S.rows() {
         for poly in row {
             println!("{}", poly.pretty("x"));
         }
     }
+    */
     println!("Generating proof..");
     proof_gen(S);
     println!("Generated proof!");
+
+
+
     /*
     // test polynomial generation
     let p1 = util::generate_polynomial(Q, D);

@@ -18,6 +18,25 @@ pub fn generate_polynomial(q : i64, d : i64) -> Polynomial<i64> {
     poly
 }
 
+
+/*
+// Computes the ring inverse of a polynomial element of R_q
+pub fn conjugation_automorphism(a : Polynomial) -> Polynomial {
+    // first, check that X^d+1 splits into two irreducible factors mod q.
+
+    // we can do this using the Extended Euclidean algorithm:
+
+    // for f in R_q, we find "a" such that (f*a congruent to 1) % x^d+1
+
+    // we need Bezout coefficients of the following form:
+    // f*a + (x^d+1)*b = 1, with gcd(f, x^d+1) = 1
+
+    // step 1: x^d+1 = f*x + r
+    a.mul(b)
+}
+*/
+
+
 /*
 pub fn jl_projection(w: &[i64]) -> Vec<i64> {
 
@@ -55,6 +74,18 @@ pub fn jl_projection(w: &[i64]) -> Vec<i64> {
 */
 
 
+pub fn multiply_poly_ints(p : Polynomial<i64>, ints: Vec<i64>) -> Polynomial<i64> {
+    let p_res : Polynomial<i64> = Polynomial::new(vec![]);
+
+    for coeff in &ints {
+        p_res += scale_polynomial(p, coeff as f32);
+    }
+    p_res
+}
+
+
+
+
 // randomly samples n integers mod q, returns them as a vec
 pub fn random_sample_Z_q(n : i64, q: i64) -> Vec<i64> {
 
@@ -75,9 +106,24 @@ pub fn scale_polynomial(p : Polynomial<i64>, s : f32) -> Polynomial<i64> {
 }
 
 // takes the 2-norm of a given polynomial (squared)
-pub fn poly_norm(p : Polynomial<i64>) -> i64 {
+pub fn poly_norm(p : Polynomial<i64>) -> f64 {
     let norm : i64 = p.data().to_vec().iter().map(|&x| x*x).sum::<i64>();
-    norm
+    norm as f64
+}
+
+
+pub fn compute_total_norm(projection: Array2<Polynomial<i64>>) -> f64 {
+
+    let mut total_norm_squared: f64 = 0.0;
+
+
+    for row in projection.outer_iter() {
+        for poly in row.iter() {
+            let norm = poly_norm(poly.clone());
+            total_norm_squared += norm;
+        }
+    }
+    return f64::sqrt(total_norm_squared);
 }
 
 
