@@ -19,9 +19,9 @@ pub fn generate_polynomial(q : i64, d : i64) -> Polynomial<i64> {
 }
 
 
-/*
+// The Legendary "Conjugation automorphism"
 // Computes the ring inverse of a polynomial element of R_q
-pub fn conjugation_automorphism(a : Polynomial) -> Polynomial {
+pub fn sigma_inv(a : Polynomial) -> Polynomial {
     // first, check that X^d+1 splits into two irreducible factors mod q.
 
     // we can do this using the Extended Euclidean algorithm:
@@ -32,47 +32,18 @@ pub fn conjugation_automorphism(a : Polynomial) -> Polynomial {
     // f*a + (x^d+1)*b = 1, with gcd(f, x^d+1) = 1
 
     // step 1: x^d+1 = f*x + r
-    a.mul(b)
+    //a.mul(b)
+    return None
 }
-*/
 
+pub fn multiply_poly_vec_ints(p_vec : Vec<Polynomial<i64>>, ints: Vec<i64>) -> Vec<Polynomial<i64>> {
+    let p_vec_res : Vec<Polynomial<i64>> = vec![];
 
-/*
-pub fn jl_projection(w: &[i64]) -> Vec<i64> {
-
-    // proving knowledge of a long vector w in Z^d without revealing it
-
-    // Let verifier sample a random linear map Pi: Z^d \to Z^256
-    // entries of Pi are independent and equal to -1,0,1 with probabilities 1/4, 1/2, 1/4
-
-    // sample random map Pi
-
-    let d = w.len();
-    let mut projection_vec = vec![0; 256];
-
-    for i in 0..255 {
-        let mut random_buffer = vec![0;d];
-        for j in 0..(d-1) {
-            if rand::random() {
-                if rand::random() {
-                    random_buffer[i] = 1;
-                }
-                else {
-                    random_buffer[i] = -1;
-                }
-            }
-            else {
-                random_buffer[i] = 0;
-            }
-        }
-        let v1 = DVector::from_vec(random_buffer);
-        let v2 = DVector::from_row_slice(w);
-        projection_vec[i] = v1.dot(&v2);
+    for p in &p_vec {
+        p_vec_res.push(multiply_poly_ints(p, ints));
     }
-    return projection_vec;
+    p_vec_res
 }
-*/
-
 
 pub fn multiply_poly_ints(p : Polynomial<i64>, ints: Vec<i64>) -> Polynomial<i64> {
     let p_res : Polynomial<i64> = Polynomial::new(vec![]);
@@ -82,8 +53,6 @@ pub fn multiply_poly_ints(p : Polynomial<i64>, ints: Vec<i64>) -> Polynomial<i64
     }
     p_res
 }
-
-
 
 
 // randomly samples n integers mod q, returns them as a vec
