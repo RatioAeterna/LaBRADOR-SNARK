@@ -9,6 +9,7 @@ use crate::constants::*;
 
 pub struct Transcript {
     // fields (see protocol)
+    z : Vec<Polynomial<i64>>,
 }
 
 

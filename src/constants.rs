@@ -1,8 +1,8 @@
 // modulus of the ring of integers
-pub const Q: i64 = 128;
+pub const Q: i64 = 1 << 32; // 2^32, as used in the paper
 
 // polynomial degree modulus
-pub const D: i64 = 5;
+pub const D: i64 = 64; // used in the paper
 
 
 // number of functions 'f' in the family F of the principal relation R

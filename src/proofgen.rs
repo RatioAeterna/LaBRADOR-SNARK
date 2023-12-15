@@ -101,16 +101,13 @@ impl Prover {
         println!("JL Projection complete and accepted");
 
         // First Aggregation step
-        
 
         // TODO the paper mentions 'log' but it's not AT ALL clear whether this is base 2, 10, e, etc.
         // We will go with 10 for now.
-
         let upper_bound : usize = (128.0f64 / (q as f64).log10()).ceil();
         for k in 1..upper_bound {
             let phi_k = verifier.generate_phi_k();
             let omega_k = verifier.generate_omega_k();
-
 
             // NOTE: for our first basic rudimentary implementation, consider that
             // a_prime_ij is just going to be a_ij... given that our F' is just going to be F since
@@ -144,13 +141,45 @@ impl Prover {
                 }
             }
 
+            let mut lhs = Polynomial::new(vec![0i64]);
+            for i in 0..R {
+                for j in 0..R {
+                    // TODO I think this is S column, but might be row. Double check later.
+                    let prod = polynomial_vec_inner_product(S.column(i).to_vec(), S.column(j).to_vec());
+                    let res = a_prime_prime[[i,j]] * prod;
+                    lhs += res;
+                }
+            }
+
+            let mut rhs = Polynomial::new(vec![0i64]);
+            for i in 0..R {
+                let res = polynomial_vec_inner_product(phi_i_prime_prime, S.column(i).to_vec());
+                rhs += res;
+            }
+            let b_prime_prime_k = lhs + rhs;
             verifier.verify_b_prime_prime(b_prime_prime_k);
+
+
+            let alpha = verifier.fetch_alpha();
+            let beta = verifier.fetch_beta();
+
+    
+            
+
+
+
+
+
+            let mut z : Vec<Polynomial<i64>> = vec![];
+
+            for i in 0..R {
+                let c_i = verifier.fetch_challenge();
+                z.push(poly_by_poly_vec(c_i, S.column(i).to_vec()));
+            }
         }
 
-
-
         // TODO fill the proof transcript with all the relevant data and return
-        let proof_transcript : Transcript = Transcript { };
+        let proof_transcript : Transcript = Transcript { z };
         proof_transcript
     }
 
