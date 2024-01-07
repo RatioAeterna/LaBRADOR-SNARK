@@ -74,39 +74,23 @@ fn util_test() {
 }
 
 fn main() {
-    println!("Welcome to LaBRADOR SNARK!");
+    println!("Welcome to the LaBRADOR Proof System!");
+    println!("Generating Witness Matrix S");
     let S = generate_witness();
-    println!("Generated witness matrix S");
+
+    println!("Generating Common Reference String (CRS)");
+    let crs = CRS::new();
+
+    println!("Generating State");
+    let st = State::new(S);
 
     let prover = Prover::new(S);
     let verifier = Verifier::new();
 
-    /*
-    for row in S.rows() {
-        for poly in row {
-            println!("{}", poly.pretty("x"));
-        }
-    }
-    */
     println!("Generating proof..");
-    let proof : Transcript = prover.proof_gen(S);
+    let proof_transcript : Transcript = prover.proof_gen(S, crs);
     println!("Generated proof!");
 
-    let res : bool = verifier.verify(st, proof);
-
-
-    /*
-    // test polynomial generation
-    let p1 = util::generate_polynomial(Q, D);
-
-    println!("Random polynomial:");
-    println!("{}", p1.pretty("x"));
-
-
-    // test random sampling Z_q
-    let sample = util::random_sample_Z_q(Q, 256);
-    println!("String of integers mod q:");
-    println!("{:?}", sample);
-    */
+    let res : bool = verifier.verify(st, proof_transcript, crs);
 }
 

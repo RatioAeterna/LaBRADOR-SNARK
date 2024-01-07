@@ -19,6 +19,19 @@ pub fn generate_polynomial(q : i64, d : i64) -> Polynomial<i64> {
 }
 
 
+pub fn generate_random_matrix(rows : i64, cols : i64, q : i64, d : i64) -> Array2<Polynomial<i64>> {
+    let mut mat = Array2::from_elem((rows,cols), Polynomial::new(vec![])); 
+    for i in 0..rows {
+        for j in 0..cols {
+            let poly = generate_polynomial(q,d);
+            mat[[i,j]] = poly.clone();
+        }
+    }
+}
+
+
+
+
 pub fn generate_polynomial_picky(q : i64, d : i64, coeff_dist : vec<i64>) -> Polynomial<i64> {
     assert!(coeff_dist.len() == d, "Must have one coefficient for each degree of polynomial");
     let mut rng = rand::thread_rng();
@@ -39,11 +52,33 @@ pub fn generate_polynomial_picky(q : i64, d : i64, coeff_dist : vec<i64>) -> Pol
     poly
 }
 
-// The Legendary "Conjugation automorphism"
-// Computes the ring inverse of a polynomial element of R_q
-pub fn sigma_inv(a : Polynomial) -> Polynomial {
-    // TODO actually implement
-    a
+// The "Conjugation automorphism"
+// This basically replaces all powers of X^n with X^{-n} and then reduces modulo X^d+1 (R's
+// modulus) 
+pub fn sigma_inv(a : Polynomial<i64>) -> Polynomial<i64> {
+
+    let poly_data_vec : Vec<i64> = a.data().to_vec();
+
+    let mut res_polynomial : Polynomial<i64> = Polynomial::new(vec![]);
+
+    // we want to loop through all the terms, take X^n to X^{-n}, and then reduce by the modulus,
+    // and then sum to our result polynomial..
+    for n in 0..poly_data_vec.len() {
+        let coeff : i64 = poly_data_vec[n];
+        if (coeff == 0) {
+            continue; 
+        }
+        if (n == 0) {
+            res_polynomial += coeff;
+            continue;
+        }
+        
+        
+        let neg_n : i64 = -1*n;
+
+        res_polynomial += changed_term;
+    }
+    res_polynomial
 }
 
 
@@ -140,7 +175,71 @@ pub fn poly_by_poly_vec(poly: Polynomial<i64>, v1: Vec<Polynomial<i64>>) -> Vec<
 }
 
 
+pub fn add_poly_vec(v1: Vec<Polynomials<i64>>, v2: Vec<Polynomials<i64>>) -> Vec<Polynomial<i64>> {
+    assert!(v1.len() == v2.len(), "summation not defined on vectors of unequal length");
 
+    let v_res : Vec<Polynomial<i64>> = vec![];
+
+    for i in 0..v1.len() {
+        let new_p = v1[i] + v2[i];
+        v_res.push(new_p);
+    }
+
+    v_res
+}
+
+
+
+
+/* Rarely, we need to do elementwise addition of a single polynomial to an entire vector of
+ * polynomials.. kind of strange, but how this is described in the protocol */
+pub fn add_poly_vec_by_poly(v1: Vec<Polynomials<i64>>, p: Polynomials<i64>) -> Vec<Polynomial<i64>> {
+    let v_res : Vec<Polynomial<i64>> = vec![];
+    for i in 0..v1.len() {
+        let new_p = v1[i] + p;
+        v_res.push(new_p);
+    }
+    v_res
+}
+
+
+pub fn gen_empty_poly_vec(n : i64) -> Vec<Polynomial<i64>> {
+    let v_res : Vec<Polynomial<i64>> = vec![];
+    for i in 0..v1.len() {
+        v_res.push(Polynomial::new(vec![]));
+    }
+
+    v_res
+}
+
+
+pub fn decompose_polynomial_vec(vec : Vec<Polynomial<i64>>, base : i64, exp: i64) -> Vec<Vec<Polynomial<i64>>> {
+
+}
+
+pub fn decompose_polynomial(p : Polynomial<i64>, base : i64, exp: i64) -> Vec<Polynomial<i64>> {
+
+     
+
+
+
+
+}
+
+
+fn vec_to_column_array(vec: Vec<Polynomial<i64>>) -> Array2<Polynomial<i64>> {
+    // Convert the Vec<T> to a one-dimensional Array
+    let a = Array::from(vec);
+
+
+     
+
+
+
+    // Convert the one-dimensional Array to a two-dimensional Array with one column
+    // The second argument to into_shape is the shape of the 2D array: (number of rows, number of columns)
+    a.into_shape((a.len(), 1)).unwrap()
+}
 
 
 

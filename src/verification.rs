@@ -10,7 +10,7 @@ use crate::constants::*;
 pub struct Verifier {
 
     projection : Array2<Polynomial<i64>>,
-    phi_k : Vec<i64>,
+    psi_k : Vec<i64>,
     omega_k : Vec<i64>,
     b_prime : i64,
 
@@ -23,20 +23,51 @@ impl Verifier {
     pub fn new() {}
 
 
+    pub fn verify(st: State, proof : Transcript, crs : CRS) -> bool {
+        
+        // CHECK 8
+        // check that g_{ij} == g_{ji} i.e., matrix gij is symmetric
+        // TODO is it faster to only check some values? I really don't think this makes a
+        // difference.
+        for i in 0..R {
+            for j in 0..R {
+                if (proof.gij[[i,j]] != proof.gij[[j,i]]) {
+                    return false;
+                }
+            }
+        }
+
+
+
+        // CHECK 16
+        let lhs : Polynomial<i64> = polynomial_vec_inner_product(transcript.z, transcript.z);
+        let rhs : Polynomial<i64>;
+
+        for i in 0..R {
+            for j in 0..R {
+                rhs += (proof.gij[[i,j]] * proof.c[i] * proof.c[j]);
+            }
+        }
+        if (lhs != rhs) return false;
+
+        true
+    }
+
+
     // TODO do we want to STORE alpha, beta in the Verifier struct?
     pub fn fetch_alpha(&self) -> Vec<Polynomial<i64>> {
         let mut alpha = vec![]; 
         for i in 0..K {
-            alpha.push(generate_polynomial(q,d));
+            alpha.push(generate_polynomial(Q,D));
         }
         alpha
     }
 
     pub fn fetch_beta(&self) -> Vec<Polynomial<i64>> {
         let mut beta = vec![]; 
-        let upper_bound : usize = (128.0f64 / (q as f64).log10()).ceil();
+        let upper_bound : usize = (128.0f64 / (Q as f64).log10()).ceil();
         for i in 0..upper_bound {
-            beta.push(generate_polynomial(q,d));
+            beta.push(generate_polynomial(Q,D));
         }
         beta
     }
@@ -57,25 +88,25 @@ impl Verifier {
             coeff_dist.push(2);
         }
 
-        let candidate = generate_polynomial_picky(q,d, coeff_dist);
+        let candidate = generate_polynomial_picky(Q,D, coeff_dist);
         // TODO... I don't think this norm should be squared, as it is.. which would perhaps give you 71^2.. definitely fix this if
         // needed.
         assert!(poly_norm(candidate) == 71, "Incorrect l2 norm of challenge polynomial");
     
         while operator_norm(candidate) > 15 {
             assert!(poly_norm(candidate) == 71, "Incorrect l2 norm of challenge polynomial");
-            let candidate = generate_polynomial_picky(q,d, coeff_dist);
+            let candidate = generate_polynomial_picky(Q,D, coeff_dist);
         }
         candidate
     }
 
-    pub fn generate_phi(&self) -> Vec<i64> {
+    pub fn generate_psi(&self) -> Vec<i64> {
         let mut rng = rand::thread_rng();
-        let mut phi_k: Vec<i64> = Vec::new();
+        let mut psi_k: Vec<i64> = Vec::new();
         for i in 0..L {
-            phi_k.push(rng.gen_range(0..q));
+            psi_k.push(rng.gen_range(0..Q));
         }
-        phi_k
+        psi_k
     }
             
 
@@ -83,7 +114,7 @@ impl Verifier {
         let mut rng = rand::thread_rng();
         let mut omega_k: Vec<i64> = Vec::new();
         for i in 0..256 {
-            omega_k.push(rng.gen_range(0..q));
+            omega_k.push(rng.gen_range(0..Q));
         }
         self.omega_k = omega_k;
         omega_k
@@ -96,7 +127,7 @@ impl Verifier {
         let prod = vec_inner_product(self.omega_k, self.projection.column(0).to_vec());
         let mut sum = 0;
         for i in 0..L {
-            sum += self.phi_k[i] * b_prime;
+            sum += self.psi_k[i] * b_prime;
         }
         let check_val = prod + sum;
 
