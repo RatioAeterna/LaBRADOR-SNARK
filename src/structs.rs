@@ -9,10 +9,11 @@ use crate::constants::*;
 
 
 pub struct CRS {
-    A : Array2<Polynomial<i64>>,
-    B : HashMap<Array2<Polynomial<i64>>,
-    C : HashMap<Array2<Polynomial<i64>>,
-    D : HashMap<Array2<Polynomial<i64>>,
+    // TODO should these fields be public? Perhaps not. Will fix later. 
+    pub A : Array2<Polynomial<i64>>,
+    pub B : HashMap<Array2<Polynomial<i64>>,
+    pub C : HashMap<Array2<Polynomial<i64>>,
+    pub D : HashMap<Array2<Polynomial<i64>>,
 }
 
 
@@ -20,12 +21,15 @@ impl CRS {
     // TODO random uniform generation for now... perhaps this warrants something more sophisticated
     // later.
     pub fn new() -> Self {
-        let A = generate_random_matrix(KAPPA, N, Q, D);
+        let A = generate_random_matrix(KAPPA, N as i64, Q, D);
+        let mut B : HashMap<Array2<Polynomial<i64>> = HashMap::new();
+        let mut C : HashMap<Array2<Polynomial<i64>> = HashMap::new();
+        let mut D : HashMap<Array2<Polynomial<i64>> = HashMap::new();
 
         // TODO maybe put this all in one loop to clean it up, but then again maybe not.
         for i in 1..(R+1) {
             for k in 0..T_1 {
-                B_ik = generate_random_matrix(KAPPA_1, N, Q, D);
+                B_ik = generate_random_matrix(KAPPA_1, N as i64, Q, D);
                 let index = (i,k);
                 B.insert(index, B_ik);
             }
@@ -56,16 +60,16 @@ impl CRS {
 
 pub struct Transcript {
     // fields (see protocol)
-    projection : Array2<Polynomial<i64>>,
-    psi : Vec<Vec<i64>> // note: This contains all ceil(128/log(q)) psi_k
-    omega : Vec<Vec<i64>> // note: This contains all ceil(128/log(q)) omega_k
-    alpha : Vec<Polynomial<i64>>,
-    beta : Vec<Polynomial<i64>>,
-    u_2 : Vec<Polynomial<i64>>,
-    c : Vec<Polynomial<i64>>,
-    z : Vec<Polynomial<i64>>,
-    gij : Array2<Polynomial<i64>>,
-    hij : Array2<Polynomial<i64>>,
+    pub projection : Array2<Polynomial<i64>>,
+    pub psi : Vec<Vec<i64>> // note: This contains all ceil(128/log(q)) psi_k
+    pub omega : Vec<Vec<i64>> // note: This contains all ceil(128/log(q)) omega_k
+    pub alpha : Vec<Polynomial<i64>>,
+    pub beta : Vec<Polynomial<i64>>,
+    pub u_2 : Vec<Polynomial<i64>>,
+    pub c : Vec<Polynomial<i64>>,
+    pub z : Vec<Polynomial<i64>>,
+    pub gij : Array2<Polynomial<i64>>,
+    pub hij : Array2<Polynomial<i64>>,
 }
 
 

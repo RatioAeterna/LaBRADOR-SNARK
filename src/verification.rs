@@ -6,24 +6,33 @@ use rand::distributions::Uniform;
 
 use crate::util::*;
 use crate::constants::*;
+use crate::structs::*;
 
 pub struct Verifier {
 
-    projection : Array2<Polynomial<i64>>,
-    psi_k : Vec<i64>,
-    omega_k : Vec<i64>,
-    b_prime : i64,
+    projection : Option<Array2<Polynomial<i64>>>,
+    psi_k : Option<Vec<i64>>,
+    omega_k : Option<Vec<i64>>,
+    b_prime : Option<i64>,
 
     // JL projection matrix
-    Pi : Vec<Array2<i64>>,
+    Pi : Option<Vec<Array2<i64>>>,
 }
 
 impl Verifier {
 
-    pub fn new() {}
+    pub fn new() -> Self {
+        Verifier {
+            projection: None,
+            psi_k: None,
+            omega_k: None,
+            b_prime: None,
+            Pi: None,
+        }
+    }
 
 
-    pub fn verify(st: State, proof : Transcript, crs : CRS) -> bool {
+    pub fn verify(&self, st: State, proof : Transcript, crs : CRS) -> bool {
         
         // CHECK 8
         // check that g_{ij} == g_{ji} i.e., matrix gij is symmetric
@@ -40,7 +49,7 @@ impl Verifier {
 
 
         // CHECK 16
-        let lhs : Polynomial<i64> = polynomial_vec_inner_product(transcript.z, transcript.z);
+        let lhs : Polynomial<i64> = polynomial_vec_inner_product(proof.z, proof.z);
         let rhs : Polynomial<i64>;
 
         for i in 0..R {
@@ -51,6 +60,11 @@ impl Verifier {
         if (lhs != rhs) return false;
 
         true
+    }
+
+    
+    pub fn get_Pi_i(&self, i : usize) -> Array2<i64> {
+        self.Pi.unwrap()[i]
     }
 
 
@@ -65,7 +79,7 @@ impl Verifier {
 
     pub fn fetch_beta(&self) -> Vec<Polynomial<i64>> {
         let mut beta = vec![]; 
-        let upper_bound : usize = (128.0f64 / (Q as f64).log10()).ceil();
+        let upper_bound : usize = (128.0f64 / (Q as f64).log10()).ceil() as usize;
         for i in 0..upper_bound {
             beta.push(generate_polynomial(Q,D));
         }
@@ -91,10 +105,10 @@ impl Verifier {
         let candidate = generate_polynomial_picky(Q,D, coeff_dist);
         // TODO... I don't think this norm should be squared, as it is.. which would perhaps give you 71^2.. definitely fix this if
         // needed.
-        assert!(poly_norm(candidate) == 71, "Incorrect l2 norm of challenge polynomial");
+        assert!(poly_norm(candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
     
-        while operator_norm(candidate) > 15 {
-            assert!(poly_norm(candidate) == 71, "Incorrect l2 norm of challenge polynomial");
+        while operator_norm(candidate) > T {
+            assert!(poly_norm(candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
             let candidate = generate_polynomial_picky(Q,D, coeff_dist);
         }
         candidate
@@ -116,7 +130,7 @@ impl Verifier {
         for i in 0..256 {
             omega_k.push(rng.gen_range(0..Q));
         }
-        self.omega_k = omega_k;
+        self.omega_k = Some(omega_k);
         omega_k
     }
 
@@ -124,10 +138,10 @@ impl Verifier {
     pub fn verify_b_prime_prime(&self, b_prime_prime_k : Polynomial<i64>) -> bool {
         // TODO again column vs row not sure.
         // Also self vs no self keyword not sure.
-        let prod = vec_inner_product(self.omega_k, self.projection.column(0).to_vec());
+        let prod = vec_inner_product(self.omega_k.unwrap(), self.projection.unwrap().column(0).to_vec());
         let mut sum = 0;
         for i in 0..L {
-            sum += self.psi_k[i] * b_prime;
+            sum += self.psi_k.unwrap()[i] * self.b_prime.unwrap();
         }
         let check_val = prod + sum;
 
@@ -149,14 +163,14 @@ impl Verifier {
             //println!("matrix[{}][{}] = {}", i, j, value);
         }
         // TODO store pi_i in the verifier's data
-        Pi.push(pi_i);
+        self.Pi.unwrap().push(pi_i);
 
         pi_i
     }
 
 
     pub fn valid_projection(&self, projection: Array2<Polynomial<i64>>) -> bool {
-        self.projection = projection;
+        self.projection = Some(projection);
         let val : f64 = 128.;
         let total_norm = compute_total_norm(projection);
         println!("TOTAL NORM OF JL PROJECTION: {}, {}",total_norm, val.sqrt()*(BETA_BOUND as f64));

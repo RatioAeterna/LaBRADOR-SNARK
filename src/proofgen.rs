@@ -15,18 +15,22 @@ pub struct Prover {
     // prover fields
     S: Array2<Polynomial<i64>>,
 
+    // reference to verifier
+    verifier: Verifier,
+
 }
 
 impl Prover {
 
 
-    pub fn new(S: Array2<Polynomial<i64>>) -> Self {
+    pub fn new(S: Array2<Polynomial<i64>>, verifier: Verifier) -> Self {
         Prover {
             S,
+            verifier,
         }
     }
 
-    pub fn proof_gen(&self, verifier : Verifier, crs : CRS) {
+    pub fn proof_gen(&self, crs : CRS) {
         //let t = Array2::<i64>::zeros((M,R)); // Inner commitment vector 
         //let t = Array2<Polynomial<i64>>::zeros((R,N)); // Inner commitment vector ( After looking at this some more, I think this is the actual dimension. Unclear, however. )
         let zero_poly = Polynomial::new(vec![0i64]);
@@ -64,7 +68,7 @@ impl Prover {
         for i in 1..(R+1) {
 
             let t_i : Vec<Vec<Polynomial<i64>>> = decompose_polynomial_vec(t.column(i).to_vec(), B_1, T_1);
-            for k in 0..(T_1) {
+            for k in 0..(*T_1 as usize) {
                 let B_ik = crs.B.get((i,k)).unwrap();
                 let t_mat = vec_to_column_array(t_i[k]);
                 let prod = polynomial_matrix_product(B_ik, t_mat).to_vec();
@@ -76,7 +80,7 @@ impl Prover {
         for i in 1..(R+1) {
             for j in i..(R+1) {
                 let g_ij : Vec<Polynomial<i64>> = decompose_polynomial(Gij[[i,j]], B_2, T_2);
-                for k in 0..(T_2) {
+                for k in 0..(*T_2 as usize) {
                     let C_ijk = crs.C.get((i,j,k)).unwrap().to_vec();
                     let g_ij_k : Polynomial<i64> = g_ij[k];
                     let prod = poly_by_poly_vec(g_ij_k, C_ijk);
@@ -94,17 +98,11 @@ impl Prover {
 
 
 
-
-
-
-
-
-
         // Next, compute JL projection
-        let mut projection = jl_project(self.S.clone());
-        while !verifier.valid_projection(projection) {
+        let mut projection = self.jl_project();
+        while !self.verifier.valid_projection(projection) {
             println!("Verifier rejected projection!");
-            projection = jl_project(self.S.clone());
+            projection = self.jl_project();
         }
         println!("JL Projection complete and accepted");
 
@@ -112,7 +110,7 @@ impl Prover {
 
         // TODO the paper mentions 'log' but it's not AT ALL clear whether this is base 2, 10, e, etc.
         // We will go with 10 for now.
-        let upper_bound : usize = (128.0f64 / (q as f64).log10()).ceil();
+        let upper_bound : usize = (128.0f64 / (Q as f64).log10()).ceil() as usize;
 
 
         let psi : Vec<Vec<i64>> = vec![];
@@ -129,8 +127,8 @@ impl Prover {
 
 
         for k in 1..(upper_bound+1) {
-            let psi_k = verifier.generate_psi_k();
-            let omega_k = verifier.generate_omega_k();
+            let psi_k = self.verifier.generate_psi();
+            let omega_k = self.verifier.generate_omega();
 
             let phi_prime_prime_k : Vec<Vec<Polynomial<i64>>> = vec![];
 
@@ -141,9 +139,9 @@ impl Prover {
             // a_prime_ij is just going to be a_ij... given that our F' is just going to be F since
             // they both have zero constant coefficient. Simple F' for now.
 
-            for i in 0..r {
-                let phi_i_prime_prime : Vec<Polynoimal<i64>> = vec![];
-                for j in 0..r {
+            for i in 0..R {
+                let phi_i_prime_prime : Vec<Polynomial<i64>> = vec![];
+                for j in 0..R {
                     let a_prime_ij : Polynomial<i64> = A[[i,j]];
                     let a_prime_prime_ij = multiply_poly_ints(a_prime_ij, psi_k);
 
@@ -152,13 +150,13 @@ impl Prover {
                     let phi_prime_i : Vec<Polynomial<i64>> = Phi[i].to_vec();
 
 
-                    let mut lhs : Vec<Polynomial<i64>> = gen_empty_poly_vec(N);
+                    let mut lhs : Vec<Polynomial<i64>> = gen_empty_poly_vec(N as i64);
                     for l in 1..(L+1) {
-                        lhs = add_poly_vecs(multiply_poly_vec_ints(phi_prime_i , psi_k), lhs);
+                        lhs = add_poly_vec(multiply_poly_vec_ints(phi_prime_i , psi_k), lhs);
                     }
 
                     // side note: consider that pi_i^(j) is the jth row of Pi_i for j = 1, ..., 256.
-                    let Pi_i = verifier.get_Pi_i();
+                    let Pi_i = self.verifier.get_Pi_i(i);
 
                     let mut rhs : Polynomial<i64> = Polynomial::new(vec![]);
 
@@ -168,8 +166,8 @@ impl Prover {
                         let conj = sigma_inv(Pi_i.row(j));
                         let omega_k_j = omega_k[j];
 
-                        let res = scale_polynomial(conj, omega_k_j);
-                        rhs += res;
+                        let res = scale_polynomial(conj, omega_k_j as f32);
+                        rhs = rhs + res;
                     }
 
                     let phi_i_prime_prime = add_poly_vec_by_poly(lhs, rhs); 
@@ -181,7 +179,7 @@ impl Prover {
             for i in 0..R {
                 for j in 0..R {
                     // TODO I think this is S column, but might be row. Double check later.
-                    let prod = polynomial_vec_inner_product(S.column(i).to_vec(), S.column(j).to_vec());
+                    let prod = polynomial_vec_inner_product(self.S.column(i).to_vec(), S.column(j).to_vec());
                     let res = a_prime_prime[[i,j]] * prod;
                     lhs += res;
                 }
@@ -190,17 +188,17 @@ impl Prover {
             let mut rhs = Polynomial::new(vec![0i64]);
             for i in 0..R {
                 let res = polynomial_vec_inner_product(phi_prime_prime_k[i], S.column(i).to_vec());
-                rhs += res;
+                rhs = rhs + res;
             }
             let b_prime_prime_k = lhs + rhs;
-            verifier.verify_b_prime_prime(b_prime_prime_k);
+            self.verifier.verify_b_prime_prime(b_prime_prime_k);
 
             phi_prime_prime_vec.push(phi_prime_prime_k);
             b_prime_prime_vec.push(b_prime_prime_k);
         }
 
-        let alpha : Vec<Polynomial<i64>> = verifier.fetch_alpha();
-        let beta : Vec<Polynomial<i64>> = verifier.fetch_beta();
+        let alpha : Vec<Polynomial<i64>> = self.verifier.fetch_alpha();
+        let beta : Vec<Polynomial<i64>> = self.verifier.fetch_beta();
 
         let phi_final : Vec<Vec<Polynomial<i64>> = vec![];
         for i in 0..R {
@@ -254,7 +252,7 @@ impl Prover {
         let mut c_vec : Vec<Polynomial<i64>> = vec![];
 
         for i in 0..R {
-            let c_i = verifier.fetch_challenge();
+            let c_i = self.verifier.fetch_challenge();
             c_vec.push(c_i);
             z.push(poly_by_poly_vec(c_i, S.column(i).to_vec()));
         }
@@ -272,7 +270,7 @@ impl Prover {
         // We'll ignore the factor of d for now and potentially come back to it.
         let mut projection : Array2<Polynomial<i64>> = Array2::zeros((256,1));
         for i in 0..R {
-            let pi_i = sample_jl_projection();
+            let pi_i = self.verifier.sample_jl_projection();
 
             let mut product : Array2<Polynomial<i64>> = Array2::zeros((256,1));
             for row in 0..pi_i.nrows() {

@@ -14,6 +14,9 @@ pub const KAPPA : i64 = 1024;
 pub const KAPPA_1 : i64 = 1024;
 pub const KAPPA_2 : i64 = 1024;
 
+// used for challenge polynomial generation
+pub const TAU : f64 = 71.0;
+pub const T : f64 = 15.0;
 
 
 // number of functions 'f' in the family F of the principal relation R
@@ -34,31 +37,34 @@ pub const R : usize = 20; // Number of COLUMNS of S
 pub const BETA_BOUND : i64 = 65536;
 
 
+// TODO it might be easier to read if you broke all of these down into functions e.g., 
+// B_1: i64 = calculate_b1(Q, &T_1);
 
 // used for "constants" which cannot be evaluated at compile time
 // most of these are the decomposition parameters described in 5.4
 lazy_static! {
     // standard deviuation of the Z_q coefficients of the vectors s_i..
     // referred to as Gothic script s in section 5.4
-    static ref STD : f64 = BETA_BOUND / ((R*N*D).sqrt());
+    pub static ref STD : f64 = (BETA_BOUND as f64) / ((((R*N) as f64)*D as f64).sqrt());
 
-    static ref B : i64 = ((12*R*TAU.sqrt()*STD).sqrt()).round();
+    pub static ref B : i64 = (((((12.*(R as usize)*TAU).sqrt()) as f64)*(*STD)).sqrt()).round() as i64;
 
-    static ref T_1 : i64 = (Q.log10() / B.log10()).round();
+    pub static ref T_1 : i64 = ((Q as f64).log10() / (*B as f64).log10()).round() as i64;
 
-    static ref B_1 : i64 = Q.powf((1.0 / T_1) as f64);
+    // TODO do we need to round this instead? Unsure, will just truncate for now
+    pub static ref B_1 : i64 = (Q as f64).powf((1.0 / (*T_1 as f64)) as f64) as i64;
 
-    static ref T_2 : i64 = (((24*N*D).sqrt()*(STD.pow(2))).log10() / B.log10()).round(); 
+    pub static ref T_2 : i64 = (((24*((N as i64)*D) as f64).sqrt()*((*STD).powi(2))).log10() / (*B as f64).log10()).round(); 
 
-    static ref B_2 : i64 = ( ((25*N*D).sqrt()*(STD.pow(2))).powf((1.0 / T_2) as f64) ).round();
+    pub static ref B_2 : i64 = ((((25*((N as i64)*D)) as f64).sqrt()*(STD.powi(2))).powf((1.0 / T_2) as f64) ).round() as i64;
 
-    static ref GAMMA : f64 = BETA_BOUND * TAU.sqrt();
+    pub static ref GAMMA : f64 = (BETA_BOUND as f64) * TAU.sqrt();
 
-    static ref GAMMA_1 : f64 = (((B_1.pow(2)*T_1) / 12.0)*R*KAPPA*D  + ((B_1.pow(2)*T_1) / 12.0)*((R.pow(2)+R)/2.0)*D).sqrt();
+    pub static ref GAMMA_1 : f64 = ((((*B_1 as f64).powi(2)*(*T_1 as f64)) / 12.0)*R*KAPPA*D + (((*B_1 as f64).powi(2)*T_1) / 12.0)*((((R as f64).powi(2)+(R as f64)) as f64)/2.0)*D).sqrt();
 
-    static ref GAMMA_2 : f64 = (((B_1.pow(2)*T_1) / 12.0)*((R.pow(2)+R)/2.0)*D).sqrt();
+    pub static ref GAMMA_2 : f64 = ((((*B_1 as f64).powi(2)*(*T_1 as f64)) / 12.0)*(((R as f64).powi(2)+(R as f64))/2.0)*(D as f64)).sqrt();
 
-    static ref BETA_PRIME : f64 = (((2.0/B.pow(2)) as f64)*GAMMA.pow(2) + GAMMA_1.pow(2) + GAMMA_2.pow(2)).sqrt();
+    pub static ref BETA_PRIME : f64 = (((2.0/(*B as f64).powi(2)) as f64)*(*GAMMA as f64).powi(2) + (*GAMMA_1 as f64).powi(2) + (*GAMMA_2 as f64).powi(2)).sqrt();
 }
 
 

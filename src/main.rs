@@ -18,6 +18,7 @@ use crate::util::*;
 use crate::proofgen::*;
 use crate::constants::*;
 use crate::structs::*;
+use crate::verification::*;
 
 /*
     TODO: better organization for testing later.
@@ -84,11 +85,11 @@ fn main() {
     println!("Generating State");
     let st = State::new(S);
 
-    let prover = Prover::new(S);
     let verifier = Verifier::new();
+    let prover = Prover::new(S, verifier);
 
     println!("Generating proof..");
-    let proof_transcript : Transcript = prover.proof_gen(S, crs);
+    let proof_transcript : Transcript = prover.proof_gen(crs);
     println!("Generated proof!");
 
     let res : bool = verifier.verify(st, proof_transcript, crs);

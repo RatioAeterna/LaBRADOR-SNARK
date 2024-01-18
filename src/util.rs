@@ -59,25 +59,22 @@ pub fn sigma_inv(a : Polynomial<i64>) -> Polynomial<i64> {
 
     let poly_data_vec : Vec<i64> = a.data().to_vec();
 
-    let mut res_polynomial : Polynomial<i64> = Polynomial::new(vec![]);
+    let mut new_coeff_vec : Vec<i64> = vec![0; 64]; 
 
-    // we want to loop through all the terms, take X^n to X^{-n}, and then reduce by the modulus,
-    // and then sum to our result polynomial..
-    for n in 0..poly_data_vec.len() {
-        let coeff : i64 = poly_data_vec[n];
-        if (coeff == 0) {
-            continue; 
-        }
-        if (n == 0) {
-            res_polynomial += coeff;
-            continue;
-        }
-        
-        
-        let neg_n : i64 = -1*n;
+    // terms of degree 0 unchanged
+    // degree 1-64, we simply transform X^n to -X^{64-n}.
 
-        res_polynomial += changed_term;
+    for deg in 0..poly_data_vec.len() {
+        let coeff = poly_data_vec[deg];
+        if deg == 0 {
+            new_coeff_vec[0] = coeff;
+        }
+        else {
+            let new_deg = 64 - deg;
+            new_coeff_vec[new_deg] = -1*coeff;
+        }
     }
+    let res_polynomial = Polynomial::new(new_coeff_vec);
     res_polynomial
 }
 
@@ -96,7 +93,7 @@ pub fn multiply_poly_ints(p : Polynomial<i64>, ints: Vec<i64>) -> Polynomial<i64
     let p_res : Polynomial<i64> = Polynomial::new(vec![]);
 
     for coeff in &ints {
-        p_res += scale_polynomial(p, coeff as f32);
+        p_res = p_res + scale_polynomial(p, *coeff as f32);
     }
     p_res
 }
@@ -127,16 +124,35 @@ pub fn poly_norm(p : Polynomial<i64>) -> f64 {
     norm as f64
 }
 
-
-// TODO this is terrible. Zero idea how to do this one at the moment.
-// But I'm certain it can be done. Ask around, think about it. Do it later.
-pub fn operator_norm(p : Polynomial<i64>) -> f64 {
-    10.0
+// Does NOT square the norm
+pub fn poly_norm_strict(p : Polynomial<i64>) -> f64 {
+    let strict_norm : f64 = ((p.data().to_vec().iter().map(|&x| x*x).sum::<i64>()) as f64).sqrt();
+    strict_norm
 }
 
 
+// TODO we're using a statistical estimate of the sup to accomplish this, not sure if that's valid.
+// should be since there's basically no other way to feasibly do this (I think). Check this.
+pub fn operator_norm(c : Polynomial<i64>) -> f64 {
+    // here's the play.
+    // compute N sample polynomials r (where N is some large number, but not too large)
+    // compute the described ratio / inner product
+    // keep a running estimate of the supremum. For sufficiently large N, it will be pretty approximate, and we can return this.
+    // TODO tweak this value as needed
+    let N = 1000;
 
+    let mut sup_estimate : f64 = 0.;
 
+    for n in 0..N {
+        let r = generate_polynomial(Q, D);
+        let norm : f64 = poly_norm_strict(c * r);        
+        let ratio : f64 = (norm / poly_norm_strict(r)); 
+        if ratio > sup_estimate {
+            sup_estimate = ratio;
+        }
+    }
+    sup_estimate
+}
 
 pub fn compute_total_norm(projection: Array2<Polynomial<i64>>) -> f64 {
 
@@ -212,18 +228,58 @@ pub fn gen_empty_poly_vec(n : i64) -> Vec<Polynomial<i64>> {
     v_res
 }
 
-
+// used specifically do decompose e.g., the entirety of t_i = t_i^(0) + ... + t_i^(t_1-1)b_1^(t_1-1)
 pub fn decompose_polynomial_vec(vec : Vec<Polynomial<i64>>, base : i64, exp: i64) -> Vec<Vec<Polynomial<i64>>> {
 
+    // TODO KAPPA is hardcoded here for now. Fix later.
+    let mut res = vec![vec![Polynomial::new(vec![]); KAPPA as usize]; exp as usize];
+
+    for i in 0..vec.len() {
+        let t_i = vec[i]; // polynomial we want to decompose
+        let dec_t_i = decompose_polynomial(t_i, base, exp);
+        for j in 0..exp {
+            res[j][i] = dec_t_i[j]; 
+        }
+    }
+    res
 }
+
+// computes the centered representative of a polynomial coefficient wrt a given base, i.e.,
+// returns a value in the range of [-b/2, b/2]
+pub fn centered_rep(val : i64, b: i64) -> i64 {
+    if val > b / 2 {
+        val -= b;
+    }
+    else if remainder <= (-b / 2) {
+        val += b;
+    }
+    val
+}
+
 
 pub fn decompose_polynomial(p : Polynomial<i64>, base : i64, exp: i64) -> Vec<Polynomial<i64>> {
 
-     
+    let poly_data_vec : Vec<i64> = p.data().to_vec();
 
+    // this takes the form of, e.g., g_{ij} = g_{ij}^(0) + ... + g_{ij}^{t_2-1}b_2^{t_2-1}
+    let decomp_vec : Vec<Polynomial<i64>> = vec![Polynomial<i64>::new(vec![]); exp as usize];
 
+    // we decompose each coefficient a_j of the polynomial (which we can express as a base K 
 
+    for deg in 0..poly_data_vec.len() {
+        let mut a_j = poly_data_vec[deg];
+        while a_j != 0 {
+            let a_jk = centered_rep(a_j % base, base);
 
+            let mut a_jk_poly_data = vec![0; deg+1];
+            a_jk_poly_data[deg] = a_jk;
+            let a_jk_poly = Polynomial::new(a_jk_poly_data);
+            decomp_vec[deg] = decomp_vec[deg] + a_jk_poly;
+            a_j -= a_jk;
+            a_j = (a_j / base); // this is the next coefficient to decompose
+        }
+    }
+    decomp_vec
 }
 
 
