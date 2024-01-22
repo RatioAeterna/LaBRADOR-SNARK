@@ -47,20 +47,20 @@ lazy_static! {
     // referred to as Gothic script s in section 5.4
     pub static ref STD : f64 = (BETA_BOUND as f64) / ((((R*N) as f64)*D as f64).sqrt());
 
-    pub static ref B : i64 = (((((12.*(R as usize)*TAU).sqrt()) as f64)*(*STD)).sqrt()).round() as i64;
+    pub static ref B : i64 = (((((12.*(R as f64)*TAU).sqrt()) as f64)*(*STD)).sqrt()).round() as i64;
 
     pub static ref T_1 : i64 = ((Q as f64).log10() / (*B as f64).log10()).round() as i64;
 
     // TODO do we need to round this instead? Unsure, will just truncate for now
     pub static ref B_1 : i64 = (Q as f64).powf((1.0 / (*T_1 as f64)) as f64) as i64;
 
-    pub static ref T_2 : i64 = (((24*((N as i64)*D) as f64).sqrt()*((*STD).powi(2))).log10() / (*B as f64).log10()).round(); 
+    pub static ref T_2 : i64 = (((24.*((N as i64)*D) as f64).sqrt()*((*STD).powi(2))).log10() / (*B as f64).log10()).round() as i64; 
 
-    pub static ref B_2 : i64 = ((((25*((N as i64)*D)) as f64).sqrt()*(STD.powi(2))).powf((1.0 / T_2) as f64) ).round() as i64;
+    pub static ref B_2 : i64 = ((((25*((N as i64)*D)) as f64).sqrt()*(STD.powi(2))).powf(1.0 / (*T_2 as f64))).round() as i64;
 
     pub static ref GAMMA : f64 = (BETA_BOUND as f64) * TAU.sqrt();
 
-    pub static ref GAMMA_1 : f64 = ((((*B_1 as f64).powi(2)*(*T_1 as f64)) / 12.0)*R*KAPPA*D + (((*B_1 as f64).powi(2)*T_1) / 12.0)*((((R as f64).powi(2)+(R as f64)) as f64)/2.0)*D).sqrt();
+    pub static ref GAMMA_1 : f64 = ((((*B_1 as f64).powi(2)*(*T_1 as f64)) / 12.0)*(R as f64)*(KAPPA as f64)*(D as f64) + (((*B_1 as f64).powi(2)*(*T_1 as f64)) / 12.0)*((((R as f64).powi(2)+(R as f64)) as f64)/2.0)*(D as f64)).sqrt();
 
     pub static ref GAMMA_2 : f64 = ((((*B_1 as f64).powi(2)*(*T_1 as f64)) / 12.0)*(((R as f64).powi(2)+(R as f64))/2.0)*(D as f64)).sqrt();
 

@@ -83,15 +83,15 @@ fn main() {
     let crs = CRS::new();
 
     println!("Generating State");
-    let st = State::new(S);
+    let st = State::new(&S);
 
-    let verifier = Verifier::new();
-    let prover = Prover::new(S, verifier);
+    let mut verifier = Verifier::new();
+    let mut prover = Prover::new(&S, &mut verifier);
 
     println!("Generating proof..");
-    let proof_transcript : Transcript = prover.proof_gen(crs);
+    let proof_transcript : Transcript = prover.proof_gen(&st, &crs);
     println!("Generated proof!");
 
-    let res : bool = verifier.verify(st, proof_transcript, crs);
+    let res : bool = verifier.verify(&st, proof_transcript, &crs);
 }
 

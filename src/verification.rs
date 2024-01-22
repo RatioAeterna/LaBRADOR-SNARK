@@ -10,9 +10,9 @@ use crate::structs::*;
 
 pub struct Verifier {
 
-    projection : Option<Array2<Polynomial<i64>>>,
-    psi_k : Option<Vec<i64>>,
-    omega_k : Option<Vec<i64>>,
+    //projection : Option<&'a Array2<Polynomial<i64>>>,
+    //psi_k : Option<Vec<i64>>,
+    //omega_k : Option<&'a Vec<i64>>,
     b_prime : Option<i64>,
 
     // JL projection matrix
@@ -23,24 +23,24 @@ impl Verifier {
 
     pub fn new() -> Self {
         Verifier {
-            projection: None,
-            psi_k: None,
-            omega_k: None,
+            //projection: None,
+            //psi_k: None,
+            //omega_k: None,
             b_prime: None,
             Pi: None,
         }
     }
 
 
-    pub fn verify(&self, st: State, proof : Transcript, crs : CRS) -> bool {
+    pub fn verify(&self, st: &State, proof : Transcript, crs : &CRS) -> bool {
         
         // CHECK 8
-        // check that g_{ij} == g_{ji} i.e., matrix gij is symmetric
+        // check that g_{ij} == g_{ji} i.e., matrix Gij is symmetric
         // TODO is it faster to only check some values? I really don't think this makes a
         // difference.
         for i in 0..R {
             for j in 0..R {
-                if (proof.gij[[i,j]] != proof.gij[[j,i]]) {
+                if (proof.Gij[[i,j]] != proof.Gij[[j,i]]) {
                     return false;
                 }
             }
@@ -49,22 +49,24 @@ impl Verifier {
 
 
         // CHECK 16
-        let lhs : Polynomial<i64> = polynomial_vec_inner_product(proof.z, proof.z);
-        let rhs : Polynomial<i64>;
+        let lhs : Polynomial<i64> = polynomial_vec_inner_product(&proof.z, &proof.z);
+        let mut rhs : Polynomial<i64> = Polynomial::new(vec![]);
 
         for i in 0..R {
             for j in 0..R {
-                rhs += (proof.gij[[i,j]] * proof.c[i] * proof.c[j]);
+                rhs = rhs + (&proof.Gij[[i,j]] * &proof.c[i] * &proof.c[j]);
             }
         }
-        if (lhs != rhs) return false;
+        if (lhs != rhs) {
+            return false;
+        }
 
         true
     }
 
     
-    pub fn get_Pi_i(&self, i : usize) -> Array2<i64> {
-        self.Pi.unwrap()[i]
+    pub fn get_Pi_i(&self, i : usize) -> &Array2<i64> {
+        &self.Pi.as_ref().unwrap()[i]
     }
 
 
@@ -91,7 +93,7 @@ impl Verifier {
     // criteria
     pub fn fetch_challenge(&self) -> Polynomial<i64> {
         // particular challenge coefficient distribution described on page 6.
-        let coeff_dist : Vec<i64> = vec![];
+        let mut coeff_dist : Vec<i64> = vec![];
         for i in 0..23 {
             coeff_dist.push(0);
         }
@@ -102,14 +104,14 @@ impl Verifier {
             coeff_dist.push(2);
         }
 
-        let candidate = generate_polynomial_picky(Q,D, coeff_dist);
+        let candidate = generate_polynomial_picky(Q,D as usize, coeff_dist.clone());
         // TODO... I don't think this norm should be squared, as it is.. which would perhaps give you 71^2.. definitely fix this if
         // needed.
-        assert!(poly_norm(candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
+        assert!(poly_norm(&candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
     
-        while operator_norm(candidate) > T {
-            assert!(poly_norm(candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
-            let candidate = generate_polynomial_picky(Q,D, coeff_dist);
+        while operator_norm(&candidate) > T {
+            assert!(poly_norm(&candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
+            let candidate = generate_polynomial_picky(Q,D as usize, coeff_dist.clone());
         }
         candidate
     }
@@ -130,11 +132,12 @@ impl Verifier {
         for i in 0..256 {
             omega_k.push(rng.gen_range(0..Q));
         }
-        self.omega_k = Some(omega_k);
-        omega_k
+        //self.omega_k = Some(&omega_k);
+        omega_k 
     }
 
 
+    /*
     pub fn verify_b_prime_prime(&self, b_prime_prime_k : Polynomial<i64>) -> bool {
         // TODO again column vs row not sure.
         // Also self vs no self keyword not sure.
@@ -148,9 +151,10 @@ impl Verifier {
         // check that the constant term is equal to the above stuff.
         b_prime_prime_k.eval(0) == check_val
     }
+    */
 
 
-    pub fn sample_jl_projection(&self) -> Array2<i64> {
+    pub fn sample_jl_projection(&mut self) -> &Array2<i64> {
 
         let between = Uniform::from(-1..=1);
 
@@ -163,14 +167,17 @@ impl Verifier {
             //println!("matrix[{}][{}] = {}", i, j, value);
         }
         // TODO store pi_i in the verifier's data
-        self.Pi.unwrap().push(pi_i);
+        self.Pi.as_mut().unwrap().push(pi_i);
 
-        pi_i
+        //&(self.Pi.unwrap().last().unwrap())
+        // TODO don't entirely understand the functionality of this line.. but seems to work.
+        let pi_ref = self.Pi.as_ref().and_then(|pi| pi.last()).unwrap();
+        pi_ref
     }
 
 
-    pub fn valid_projection(&self, projection: Array2<Polynomial<i64>>) -> bool {
-        self.projection = Some(projection);
+    pub fn valid_projection(&mut self, projection: &Array2<Polynomial<i64>>) -> bool {
+        //self.projection = Some(projection);
         let val : f64 = 128.;
         let total_norm = compute_total_norm(projection);
         println!("TOTAL NORM OF JL PROJECTION: {}, {}",total_norm, val.sqrt()*(BETA_BOUND as f64));
