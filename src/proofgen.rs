@@ -283,23 +283,16 @@ impl<'a> Prover<'a> {
         proof_transcript
     }
 
-    pub fn jl_project(&mut self) -> Array2<Polynomial<i64>> {
+    pub fn jl_project(&mut self) -> Vec<i64> {
         // verifier sends random matrices in {-1,0,1}
-        // TODO fix dimension of pi_i: should be 256 x ND (not 256 x N)
-        let mut projection : Array2<Polynomial<i64>> = Array2::zeros((256,1));
+        let mut projection : Vec<i64> = vec![0 ; 256];
         for i in 0..R {
-            let pi_i = self.verifier.sample_jl_projection();
-
-            let mut product : Array2<Polynomial<i64>> = Array2::zeros((256,1));
-            for row in 0..pi_i.nrows() {
-                let mut sum : Polynomial<i64> = Polynomial::new(vec![]);
-                for col in 0..pi_i.ncols() {
-                    // scale the polynomial by either -1, 0, or 1
-                    sum = sum + scale_polynomial(&self.S.column(i)[col], pi_i[[row,col]] as f32);
-                }
-                product[[row, 0]] = sum;
-            }
-            projection = projection + product;
+            let Pi_i = self.verifier.sample_jl_projection();
+            let s_i_coeffs : Array2<i64> = vec_to_column_array(&witness_coeff_concat(&self.S.column(i).to_vec()));
+            // NOTE: for reference, this is a 256x(ND) multiplied by an (ND)x1, giving a 256x1
+            // which we turn into a vec
+            let product = matmul(Pi_i, &s_i_coeffs).column(0).to_vec();
+            projection = add_vecs(&projection, &product);
         }
         projection
     }

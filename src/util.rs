@@ -3,6 +3,8 @@ use polynomial::Polynomial;
 use rand::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand::distributions::Uniform;
+// TODO yes, we're using this for now. No, it's not great. Yes, we will remove this later.
+use std::clone::Clone;
 
 use crate::constants::*;
 
@@ -137,6 +139,12 @@ pub fn poly_norm_strict(p : &Polynomial<i64>) -> f64 {
 }
 
 
+// Does NOT square the norm. Integer vec version
+pub fn l2_norm(vec : &Vec<i64>) -> f64 {
+    let sum_of_squares: i64 = vec.iter().map(|&x| x * x).sum();
+    (sum_of_squares as f64).sqrt()
+}
+
 // TODO we're using a statistical estimate of the sup to accomplish this, not sure if that's valid.
 // should be since there's basically no other way to feasibly do this (I think). Check this.
 pub fn operator_norm(c : &Polynomial<i64>) -> f64 {
@@ -161,10 +169,7 @@ pub fn operator_norm(c : &Polynomial<i64>) -> f64 {
 }
 
 pub fn compute_total_norm(projection: &Array2<Polynomial<i64>>) -> f64 {
-
     let mut total_norm_squared: f64 = 0.0;
-
-
     for row in projection.outer_iter() {
         for poly in row.iter() {
             let norm = poly_norm(poly);
@@ -174,12 +179,12 @@ pub fn compute_total_norm(projection: &Array2<Polynomial<i64>>) -> f64 {
     return f64::sqrt(total_norm_squared);
 }
 
-pub fn vec_inner_product(v1: Vec<i64>, v2: Vec<i64>) -> Vec<i64> {
+pub fn vec_inner_product(v1: &Vec<i64>, v2: &Vec<i64>) -> i64 {
     assert!(v1.len() == v2.len(), "inner product not defined on vectors of unequal length");
-    let mut result = vec![];
+    let mut result : i64 = 0;
     for i in 0..v1.len() {
         let product = &v1[i] * &v2[i];
-        result.push(product);
+        result += product;
     }
     result
 }
@@ -199,17 +204,23 @@ pub fn poly_by_poly_vec(poly: &Polynomial<i64>, v1: &Vec<Polynomial<i64>>) -> Ve
 
 pub fn add_poly_vec(v1: &Vec<Polynomial<i64>>, v2: &Vec<Polynomial<i64>>) -> Vec<Polynomial<i64>> {
     assert!(v1.len() == v2.len(), "summation not defined on vectors of unequal length");
-
     let mut v_res : Vec<Polynomial<i64>> = vec![];
-
     for i in 0..v1.len() {
         let new_p = &v1[i] + &v2[i];
         v_res.push(new_p);
     }
-
     v_res
 }
 
+pub fn add_vecs(v1: &Vec<i64>, v2: &Vec<i64>) -> Vec<i64> {
+    assert!(v1.len() == v2.len(), "summation not defined on vectors of unequal length");
+    let mut v_res : Vec<i64> = vec![];
+    for i in 0..v1.len() {
+        let new_p = &v1[i] + &v2[i];
+        v_res.push(new_p);
+    }
+    v_res
+}
 
 
 
@@ -223,6 +234,9 @@ pub fn add_poly_vec_by_poly(v1: &Vec<Polynomial<i64>>, p: &Polynomial<i64>) -> V
     }
     v_res
 }
+
+
+
 
 
 pub fn gen_empty_poly_vec(n : usize) -> Vec<Polynomial<i64>> {
@@ -291,14 +305,59 @@ pub fn decompose_polynomial(p : &Polynomial<i64>, base : i64, exp: i64) -> Vec<P
 }
 
 
-// Convert the one-dimensional Array to a two-dimensional Array with one column
-pub fn vec_to_column_array(vec: &Vec<Polynomial<i64>>) -> Array2<Polynomial<i64>> {
-    // Convert the Vec<T> to a one-dimensional "column vector" Array
-    // args to this function: num rows, num columns, vec to transform.
-    let a = Array2::from_shape_vec((vec.len(), 1), vec.iter().cloned().collect()).unwrap();
-    a
+
+
+// Used to convert a vector of polynomials \vec{\b{s}}_i to another vector
+// which is a concatenation of all the coefficients 
+pub fn witness_coeff_concat(vec: &Vec<Polynomial<i64>>) -> Vec<i64> {
+    // NOTE: we assume that the polynomials in vec will be of degree D... 
+    // But we want to return a vec of degree N*D (where N is the assumed length of vec)..
+    // So we recognize that for a polynomial ring mod X^D+1, X^d congruent to -1... so we can
+    // rewrite as such.
+    let mut coeffs : Vec<i64> = vec![];
+    for j in 0..vec.len() {
+        let poly : &Polynomial<i64> = &vec[j];
+        let poly_vec_data : Vec<i64> = poly.data().to_vec();
+        
+        // TODO can we simplify this to poly_vec_data.len()? I don't think so, since data might
+        // store fewer coeffs
+        for deg in 0..(D as usize) {
+            if deg < poly_vec_data.len() {
+                // The case where we need to convert X^d -> -1 and add that to the constant term
+                if (deg == 0) && (poly_vec_data.len() == (D as usize)+1) {
+                    let constant_term = poly_vec_data[0]; 
+                    let highest_term = poly_vec_data[(D as usize)];
+                    let mut new_term = highest_term + constant_term;
+                    // if negative, add Q until number is in [0, Q-1]
+                    if(new_term < 0) {
+                        while(new_term < 0) {
+                            new_term += Q;
+                        }
+                    }
+                    coeffs.push(new_term);
+                }
+                else {
+                    coeffs.push(poly_vec_data[deg]);
+                }
+            }
+            else {
+                coeffs.push(0);
+            }
+        }
+    }
+    coeffs
 }
 
+// Convert the one-dimensional Array to a two-dimensional Array with one column
+pub fn vec_to_column_array<T>(vec: &Vec<T>) -> Array2<T>
+where
+    T: Clone,
+{
+    // Convert the Vec<T> to a one-dimensional "column vector" Array
+    // args to this function: num rows, num columns, vec to transform.
+    let a = Array2::from_shape_vec((vec.len(), 1), vec.to_vec()).unwrap();
+    a
+}
 
 // compute the dot product between two lists of polynomials
 pub fn polynomial_vec_inner_product(v1: &[Polynomial<i64>], v2: &[Polynomial<i64>]) -> Polynomial<i64> {
@@ -307,6 +366,22 @@ pub fn polynomial_vec_inner_product(v1: &[Polynomial<i64>], v2: &[Polynomial<i64
     for i in 0..v1.len() {
         let product = &v1[i] * &v2[i];
         result = result + product;
+    }
+    result
+}
+
+pub fn matmul(m1: &Array2<i64>, m2: &Array2<i64>) -> Array2<i64> {
+    assert!(m1.shape()[1] == m2.shape()[0], "matrix product not defined on matrices which do not have dimension (m,n) x (n,k), for some m,n,k");
+    let m = m1.shape()[0];
+    let k = m2.shape()[1];
+
+    let mut result = Array2::from_elem(Ix2(m, k), 0); 
+    for i in 0..m {
+        for j in 0..k {
+            let v1 = m1.row(i).to_vec();
+            let v2 = m1.column(j).to_vec();
+            result[[i,j]] = vec_inner_product(&v1, &v2);
+        }
     }
     result
 }

@@ -160,28 +160,27 @@ impl Verifier {
 
         let mut rng = rand::thread_rng();
 
-        let mut pi_i : Array2<i64> = Array2::zeros((256, N));
+        let mut Pi_i : Array2<i64> = Array2::zeros((256, N*(D as usize)));
 
-        for ((i, j), value) in pi_i.indexed_iter_mut() {
+        for ((i, j), value) in Pi_i.indexed_iter_mut() {
             *value = between.sample(&mut rng);
             //println!("matrix[{}][{}] = {}", i, j, value);
         }
         // TODO store pi_i in the verifier's data
-        self.Pi.as_mut().unwrap().push(pi_i);
+        self.Pi.as_mut().unwrap().push(Pi_i);
 
         //&(self.Pi.unwrap().last().unwrap())
         // TODO don't entirely understand the functionality of this line.. but seems to work.
-        let pi_ref = self.Pi.as_ref().and_then(|pi| pi.last()).unwrap();
-        pi_ref
+        let Pi_ref = self.Pi.as_ref().and_then(|pi| pi.last()).unwrap();
+        Pi_ref
     }
 
 
-    pub fn valid_projection(&mut self, projection: &Array2<Polynomial<i64>>) -> bool {
-        //self.projection = Some(projection);
+    pub fn valid_projection(&mut self, projection: &Vec<i64>) -> bool {
         let val : f64 = 128.;
-        let total_norm = compute_total_norm(projection);
-        println!("TOTAL NORM OF JL PROJECTION: {}, {}",total_norm, val.sqrt()*(BETA_BOUND as f64));
-        return total_norm <= val.sqrt()*(BETA_BOUND as f64);
+        let norm = l2_norm(projection);
+        println!("TOTAL NORM OF JL PROJECTION: {}, {}", norm, val.sqrt()*(BETA_BOUND as f64));
+        return norm <= val.sqrt()*(BETA_BOUND as f64);
     }
 
 }

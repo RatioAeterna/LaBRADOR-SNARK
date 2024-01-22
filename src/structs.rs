@@ -61,7 +61,7 @@ impl CRS {
 
 pub struct Transcript {
     // fields (see protocol)
-    pub projection : Array2<Polynomial<i64>>,
+    pub projection : Vec<i64>,
     pub psi : Vec<Vec<i64>>, // note: This contains all ceil(128/log(q)) psi_k
     pub omega : Vec<Vec<i64>>, // note: This contains all ceil(128/log(q)) omega_k
     pub alpha : Vec<Polynomial<i64>>,
