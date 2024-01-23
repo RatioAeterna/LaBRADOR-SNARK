@@ -61,6 +61,7 @@ impl CRS {
 
 pub struct Transcript {
     // fields (see protocol)
+    pub u_1 : Vec<Polynomial<i64>>,
     pub projection : Vec<i64>,
     pub psi : Vec<Vec<i64>>, // note: This contains all ceil(128/log(q)) psi_k
     pub omega : Vec<Vec<i64>>, // note: This contains all ceil(128/log(q)) omega_k
@@ -90,6 +91,7 @@ pub struct State {
     // Contents of F' (constant term of the solution must be zero):
     pub phi_prime_k : Vec<Array2<Polynomial<i64>>>,
     pub a_prime_k : Vec<Array2<Polynomial<i64>>>,
+    // TODO these should be evaluations at ZERO, i.e., i64 constant coefficients, not polynomials
     pub b_prime_k : Vec<Polynomial<i64>>,
 }
 

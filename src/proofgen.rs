@@ -65,8 +65,7 @@ impl<'a> Prover<'a> {
         }
 
         let mut lhs = gen_empty_poly_vec(KAPPA_1 as usize);
-        for i in 1..(R+1) {
-
+        for i in 0..R {
             let t_i : Vec<Vec<Polynomial<i64>>> = decompose_polynomial_vec(&t.column(i).to_vec(), *B_1, *T_1);
             for k in 0..(*T_1 as usize) {
                 let B_ik = crs.B_mat.get(&(i,k)).unwrap();
@@ -80,8 +79,8 @@ impl<'a> Prover<'a> {
         }
 
         let mut rhs = gen_empty_poly_vec(KAPPA_2 as usize);
-        for i in 1..(R+1) {
-            for j in i..(R+1) {
+        for i in 0..R {
+            for j in i..R {
                 let g_ij : Vec<Polynomial<i64>> = decompose_polynomial(&Gij[[i,j]], *B_2, *T_2);
                 for k in 0..(*T_2 as usize) {
                     let C_ijk = crs.C_mat.get(&(i,j,k)).unwrap().column(0).to_vec();
@@ -169,17 +168,14 @@ impl<'a> Prover<'a> {
 
                     let mut rhs : Polynomial<i64> = Polynomial::new(vec![]);
 
-                    // TODO I think this should be 0..256 or something depending on how for loops
-                    // work
-                    /*
-                    for j in 1..256 {
-                        let conj = sigma_inv(Pi_i.row(j));
-                        let omega_k_j = omega_k[j];
+                    for j in 0..256 {
+                        let bolded_pi_poly = Polynomial::new(Pi_i.row(j).to_vec());
+                        let conj = sigma_inv(&bolded_pi_poly);
+                        let omega_k_j = omega.last().unwrap()[j];
 
-                        let res = scale_polynomial(conj, omega_k_j as f32);
+                        let res = scale_polynomial(&conj, omega_k_j as f32);
                         rhs = rhs + res;
                     }
-                    */
 
                     let phi_i_prime_prime = add_poly_vec_by_poly(&lhs, &rhs); 
                 }
@@ -279,7 +275,7 @@ impl<'a> Prover<'a> {
         }
 
         // TODO fill the proof transcript with all the relevant data and return
-        let proof_transcript : Transcript = Transcript { projection, psi, omega, alpha, beta, u_2, c : c_vec, z, Gij, Hij };
+        let proof_transcript : Transcript = Transcript { u_1, projection, psi, omega, alpha, beta, u_2, c : c_vec, z, Gij, Hij };
         proof_transcript
     }
 

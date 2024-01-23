@@ -46,6 +46,30 @@ impl Verifier {
             }
         }
 
+        // CHECK 9
+        // check that h_{ij} == h{ji} i.e., matrix Hij is symmetric
+        for i in 0..R {
+            for j in 0..R {
+                if (proof.Hij[[i,j]] != proof.Hij[[j,i]]) {
+                    return false;
+                }
+            }
+        }
+
+
+        // LINE 10
+        // Decompose vec z into z = z^(0) + z^(1)b
+        let z : Vec<Vec<Polynomial<i64>>> = decompose_polynomial_vec(&proof.z, *B, 2);
+
+        // LINE 11
+        // Decompose vec t_i the same way
+        let t_i : Vec<Vec<Polynomial<i64>>> = decompose_polynomial_vec(&t.column(i).to_vec(), *B_1, *T_1);
+
+
+
+
+        // CHECK 15
+
 
 
         // CHECK 16

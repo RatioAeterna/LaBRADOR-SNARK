@@ -63,7 +63,7 @@ pub fn generate_polynomial_picky(q : i64, d : usize, mut coeff_dist : Vec<i64>) 
 // The "Conjugation automorphism"
 // This basically replaces all powers of X^n with X^{-n} and then reduces modulo X^d+1 (R's
 // modulus) 
-pub fn sigma_inv(a : Polynomial<i64>) -> Polynomial<i64> {
+pub fn sigma_inv(a : &Polynomial<i64>) -> Polynomial<i64> {
 
     let poly_data_vec : Vec<i64> = a.data().to_vec();
 
@@ -303,9 +303,6 @@ pub fn decompose_polynomial(p : &Polynomial<i64>, base : i64, exp: i64) -> Vec<P
     }
     decomp_vec
 }
-
-
-
 
 // Used to convert a vector of polynomials \vec{\b{s}}_i to another vector
 // which is a concatenation of all the coefficients 
