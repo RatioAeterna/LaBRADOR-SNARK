@@ -11,10 +11,10 @@ use crate::constants::*;
 
 pub struct CRS {
     // TODO should these fields be public? Perhaps not. Will fix later. 
-    pub A_mat : Array2<Polynomial<i64>>,
-    pub B_mat : HashMap<(usize, usize), Array2<Polynomial<i64>>>,
-    pub C_mat : HashMap<(usize, usize, usize), Array2<Polynomial<i64>>>,
-    pub D_mat : HashMap<(usize, usize, usize), Array2<Polynomial<i64>>>,
+    pub A_mat : Array2<Polynomial<i128>>,
+    pub B_mat : HashMap<(usize, usize), Array2<Polynomial<i128>>>,
+    pub C_mat : HashMap<(usize, usize, usize), Array2<Polynomial<i128>>>,
+    pub D_mat : HashMap<(usize, usize, usize), Array2<Polynomial<i128>>>,
 }
 
 
@@ -22,19 +22,25 @@ impl CRS {
     // TODO random uniform generation for now... perhaps this warrants something more sophisticated
     // later.
     pub fn new() -> Self {
-        let A_mat = generate_random_matrix(KAPPA, N as i64, Q, D);
-        let mut B_mat : HashMap<(usize, usize), Array2<Polynomial<i64>>> = HashMap::new();
-        let mut C_mat : HashMap<(usize, usize, usize), Array2<Polynomial<i64>>> = HashMap::new();
-        let mut D_mat : HashMap<(usize, usize, usize), Array2<Polynomial<i64>>> = HashMap::new();
+        println!("Generating random matrix A");
+        let A_mat = generate_random_matrix(KAPPA, N as i128, Q, D);
+        let mut B_mat : HashMap<(usize, usize), Array2<Polynomial<i128>>> = HashMap::new();
+        let mut C_mat : HashMap<(usize, usize, usize), Array2<Polynomial<i128>>> = HashMap::new();
+        let mut D_mat : HashMap<(usize, usize, usize), Array2<Polynomial<i128>>> = HashMap::new();
+
+        println!("Generating B matrices");
+        
 
         // TODO maybe put this all in one loop to clean it up, but then again maybe not.
         for i in 1..(R+1) {
             for k in 0..(*T_1 as usize) {
-                let B_ik = generate_random_matrix(KAPPA_1, N as i64, Q, D);
+                let B_ik = generate_random_matrix(KAPPA_1, N as i128, Q, D);
                 let index = (i,k);
                 B_mat.insert(index, B_ik);
             }
         }
+
+        println!("Generating C matrices");
 
         for i in 1..(R+1) {
             for j in i..(R+1) {
@@ -45,6 +51,8 @@ impl CRS {
                 }
             }
         }
+
+        println!("Generating D matrices");
 
         for i in 1..(R+1) {
             for j in i..(R+1) {
@@ -61,20 +69,20 @@ impl CRS {
 
 pub struct Transcript {
     // fields (see protocol)
-    pub u_1 : Vec<Polynomial<i64>>,
-    // pub Pi_i : Vec<Array2<i64>>, TODO Yes, we want this in here eventually.
-    pub projection : Vec<i64>,
-    pub psi : Vec<Vec<i64>>, // note: This contains all ceil(128/log(q)) psi_k
-    pub omega : Vec<Vec<i64>>, // note: This contains all ceil(128/log(q)) omega_k
-    pub b_prime_prime: Vec<Polynomial<i64>>,
-    pub alpha : Vec<Polynomial<i64>>,
-    pub beta : Vec<Polynomial<i64>>,
-    pub u_2 : Vec<Polynomial<i64>>,
-    pub c : Vec<Polynomial<i64>>,
-    pub z : Vec<Polynomial<i64>>,
-    pub t_i_all : Vec<Vec<Polynomial<i64>>>, // TODO forgive the slightly goofy name will fix later
-    pub Gij : Array2<Polynomial<i64>>,
-    pub Hij : Array2<Polynomial<i64>>,
+    pub u_1 : Vec<Polynomial<i128>>,
+    // pub Pi_i : Vec<Array2<i128>>, TODO Yes, we want this in here eventually.
+    pub projection : Vec<i128>,
+    pub psi : Vec<Vec<i128>>, // note: This contains all ceil(128/log(q)) psi_k
+    pub omega : Vec<Vec<i128>>, // note: This contains all ceil(128/log(q)) omega_k
+    pub b_prime_prime: Vec<Polynomial<i128>>,
+    pub alpha : Vec<Polynomial<i128>>,
+    pub beta : Vec<Polynomial<i128>>,
+    pub u_2 : Vec<Polynomial<i128>>,
+    pub c : Vec<Polynomial<i128>>,
+    pub z : Vec<Polynomial<i128>>,
+    pub t_i_all : Vec<Vec<Polynomial<i128>>>, // TODO forgive the slightly goofy name will fix later
+    pub Gij : Array2<Polynomial<i128>>,
+    pub Hij : Array2<Polynomial<i128>>,
 }
 
 
@@ -87,20 +95,20 @@ pub struct State {
     // in F.
 
     // Contents of F:
-    pub phi_k : Vec<Array2<Polynomial<i64>>>,
-    pub a_k : Vec<Array2<Polynomial<i64>>>,
-    pub b_k : Vec<Polynomial<i64>>,
+    pub phi_k : Vec<Array2<Polynomial<i128>>>,
+    pub a_k : Vec<Array2<Polynomial<i128>>>,
+    pub b_k : Vec<Polynomial<i128>>,
 
     // Contents of F' (constant term of the solution must be zero):
-    pub phi_prime_k : Vec<Array2<Polynomial<i64>>>,
-    pub a_prime_k : Vec<Array2<Polynomial<i64>>>,
-    // TODO these should be evaluations at ZERO, i.e., i64 constant coefficients, not polynomials
-    pub b_prime_k : Vec<Polynomial<i64>>,
+    pub phi_prime_k : Vec<Array2<Polynomial<i128>>>,
+    pub a_prime_k : Vec<Array2<Polynomial<i128>>>,
+    // TODO these should be evaluations at ZERO, i.e., i128 constant coefficients, not polynomials
+    pub b_prime_k : Vec<Polynomial<i128>>,
 }
 
 impl State {
 
-    fn gen_f(S: &Array2<Polynomial<i64>>) -> (Array2<Polynomial<i64>>, Array2<Polynomial<i64>>, Polynomial<i64>) {
+    fn gen_f(S: &Array2<Polynomial<i128>>) -> (Array2<Polynomial<i128>>, Array2<Polynomial<i128>>, Polynomial<i128>) {
         // random generation of the polynomial matrix Aij (NOT TO BE CONFUSED WITH CRS matrix A!)
         let mut Aij = Array2::from_elem((R,R), Polynomial::new(vec![])); 
         for i in 0..R {
@@ -130,7 +138,7 @@ impl State {
 
         // Next, we need to compute 'b' such that this relation is equal to zero
         // So we compute the values of the relation and work backwards
-        let mut a_product : Polynomial<i64> = Polynomial::new(vec![]);
+        let mut a_product : Polynomial<i128> = Polynomial::new(vec![]);
         for i in 0..R {
             for j in 0..R {
                 let inner_prod = polynomial_vec_inner_product(&S.column(i).to_vec(), &S.column(j).to_vec());
@@ -139,15 +147,18 @@ impl State {
             }
         }
 
-        let mut phi_product : Polynomial<i64> = Polynomial::new(vec![]);
+        let mut phi_product : Polynomial<i128> = Polynomial::new(vec![]);
         for i in 0..R {
             let inner_prod = polynomial_vec_inner_product(&Phi.column(i).to_vec(), &S.column(i).to_vec());
             phi_product = phi_product.clone() + inner_prod;
         }
 
-        let b : Polynomial<i64> = a_product + phi_product;
+        let b : Polynomial<i128> = &a_product + &phi_product;
         println!("Generated b!");
-        println!("{}", b.pretty("x"));
+        println!("{}\n\n", b.pretty("x"));
+
+        println!("A product: {}\n", a_product.pretty("x"));
+        println!("Phi product: {}", phi_product.pretty("x"));
 
         (Phi, Aij, b)
     }
@@ -155,19 +166,19 @@ impl State {
 
 
 
-    pub fn new(S: &Array2<Polynomial<i64>>) -> Self {
-        let mut phi_k : Vec<Array2<Polynomial<i64>>> = vec![];
-        let mut a_k : Vec<Array2<Polynomial<i64>>> = vec![];
-        let mut b_k : Vec<Polynomial<i64>> = vec![];
+    pub fn new(S: &Array2<Polynomial<i128>>) -> Self {
+        let mut phi_k : Vec<Array2<Polynomial<i128>>> = vec![];
+        let mut a_k : Vec<Array2<Polynomial<i128>>> = vec![];
+        let mut b_k : Vec<Polynomial<i128>> = vec![];
 
-        let mut phi_prime_k : Vec<Array2<Polynomial<i64>>> = vec![];
-        let mut a_prime_k : Vec<Array2<Polynomial<i64>>> = vec![];
-        let mut b_prime_k : Vec<Polynomial<i64>> = vec![];
+        let mut phi_prime_k : Vec<Array2<Polynomial<i128>>> = vec![];
+        let mut a_prime_k : Vec<Array2<Polynomial<i128>>> = vec![];
+        let mut b_prime_k : Vec<Polynomial<i128>> = vec![];
 
         for k in 0..K {
-            let phi : Array2<Polynomial<i64>>;
-            let a : Array2<Polynomial<i64>>;
-            let b : Polynomial<i64>;
+            let phi : Array2<Polynomial<i128>>;
+            let a : Array2<Polynomial<i128>>;
+            let b : Polynomial<i128>;
 
             let (phi, a, b) = Self::gen_f(S);
 

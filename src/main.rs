@@ -25,6 +25,24 @@ use crate::verification::*;
     Right now we just test a bunch of util / misc. functions here haphazardly.
 */
 
+//#[test]
+fn print_constants() {
+    println!("Printing runtime-computed constants:\n");
+    println!("STD: {}", *STD);
+    println!("B: {}", *B);
+    println!("B_1: {}", *B_1);
+    println!("B_2: {}", *B_2);
+    println!("T_1: {}", *T_1);
+    println!("T_2: {}", *T_2);
+    println!("GAMMA: {}", *GAMMA);
+    println!("GAMMA_1: {}", *GAMMA_1);
+    println!("GAMMA_2: {}", *GAMMA_2);
+    println!("BETA_PRIME: {}", *BETA_PRIME);
+}
+
+
+
+
 #[test]
 fn util_test() {
     // test polynomial generation
@@ -58,15 +76,15 @@ fn util_test() {
     println!("Computed norm of witness matrix: {:.64}", witness_norm);
 
     println!("Testing polynomial vec inner product:");
-    let mut vec_a : Vec<Polynomial<i64>> = vec![];
-    let mut vec_b : Vec<Polynomial<i64>> = vec![];
+    let mut vec_a : Vec<Polynomial<i128>> = vec![];
+    let mut vec_b : Vec<Polynomial<i128>> = vec![];
     for i in 0..5 {
-        let mut new_poly = Polynomial::new(vec![0i64,1,2,3]);
+        let mut new_poly = Polynomial::new(vec![0i128,1,2,3]);
         vec_a.push(new_poly.clone());
         vec_b.push(new_poly);
     }
 
-    let product : Polynomial<i64> = Polynomial::new(vec![0i64,1,2,3]) * Polynomial::new(vec![0i64,1,2,3]) * Polynomial::new(vec![5i64]);
+    let product : Polynomial<i128> = Polynomial::new(vec![0i128,1,2,3]) * Polynomial::new(vec![0i128,1,2,3]) * Polynomial::new(vec![5i128]);
 
     let prod_poly = polynomial_vec_inner_product(vec_a, vec_b);
     assert!(prod_poly == product, "Polynomial inner products are broken.");
@@ -76,6 +94,9 @@ fn util_test() {
 
 fn main() {
     println!("Welcome to the LaBRADOR Proof System!");
+
+    print_constants();
+
     println!("Generating Witness Matrix S");
     let S = generate_witness();
 

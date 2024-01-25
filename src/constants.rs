@@ -2,17 +2,17 @@ use lazy_static::lazy_static;
 
 
 // modulus of the ring of integers
-pub const Q: i64 = 1 << 32; // 2^32, as used in the paper
+pub const Q: i128 = 1 << 32; // 2^32, as used in the paper
 
 // polynomial degree modulus
-pub const D: i64 = 64; // used in the paper
+pub const D: i128 = 64; // used in the paper
 
 
 // commitment ranks... TODO I have NO idea what these should actually be sized at. It doesn't seem
-// to be described in the paper.
-pub const KAPPA : i64 = 1024;
-pub const KAPPA_1 : i64 = 1024;
-pub const KAPPA_2 : i64 = 1024;
+// to be described in the paper. Tried 1024, seems to be... a bit large. We'll see.
+pub const KAPPA : i128 = 128;
+pub const KAPPA_1 : i128 = 128;
+pub const KAPPA_2 : i128 = 128;
 
 // used for challenge polynomial generation
 pub const TAU : f64 = 71.0;
@@ -34,11 +34,11 @@ pub const N : usize = 128; // NUMBER of ROWS of S
 pub const R : usize = 20; // Number of COLUMNS of S
 
 // setting bound for SIS 2-norm
-pub const BETA_BOUND : i64 = 65536;
+pub const BETA_BOUND : i128 = 65536;
 
 
 // TODO it might be easier to read if you broke all of these down into functions e.g., 
-// B_1: i64 = calculate_b1(Q, &T_1);
+// B_1: i128 = calculate_b1(Q, &T_1);
 
 // used for "constants" which cannot be evaluated at compile time
 // most of these are the decomposition parameters described in 5.4
@@ -47,16 +47,16 @@ lazy_static! {
     // referred to as Gothic script s in section 5.4
     pub static ref STD : f64 = (BETA_BOUND as f64) / ((((R*N) as f64)*D as f64).sqrt());
 
-    pub static ref B : i64 = (((((12.*(R as f64)*TAU).sqrt()) as f64)*(*STD)).sqrt()).round() as i64;
+    pub static ref B : i128 = (((((12.*(R as f64)*TAU).sqrt()) as f64)*(*STD)).sqrt()).round() as i128;
 
-    pub static ref T_1 : i64 = ((Q as f64).log10() / (*B as f64).log10()).round() as i64;
+    pub static ref T_1 : i128 = ((Q as f64).log10() / (*B as f64).log10()).round() as i128;
 
     // TODO do we need to round this instead? Unsure, will just truncate for now
-    pub static ref B_1 : i64 = (Q as f64).powf((1.0 / (*T_1 as f64)) as f64) as i64;
+    pub static ref B_1 : i128 = (Q as f64).powf((1.0 / (*T_1 as f64)) as f64) as i128;
 
-    pub static ref T_2 : i64 = (((24.*((N as i64)*D) as f64).sqrt()*((*STD).powi(2))).log10() / (*B as f64).log10()).round() as i64; 
+    pub static ref T_2 : i128 = (((24.*((N as i128)*D) as f64).sqrt()*((*STD).powi(2))).log10() / (*B as f64).log10()).round() as i128; 
 
-    pub static ref B_2 : i64 = ((((25*((N as i64)*D)) as f64).sqrt()*(STD.powi(2))).powf(1.0 / (*T_2 as f64))).round() as i64;
+    pub static ref B_2 : i128 = ((((25*((N as i128)*D)) as f64).sqrt()*(STD.powi(2))).powf(1.0 / (*T_2 as f64))).round() as i128;
 
     pub static ref GAMMA : f64 = (BETA_BOUND as f64) * TAU.sqrt();
 

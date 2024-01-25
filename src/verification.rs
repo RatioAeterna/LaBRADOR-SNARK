@@ -10,13 +10,13 @@ use crate::structs::*;
 
 pub struct Verifier {
 
-    //projection : Option<&'a Array2<Polynomial<i64>>>,
-    //psi_k : Option<Vec<i64>>,
-    //omega_k : Option<&'a Vec<i64>>,
-    b_prime : Option<i64>,
+    //projection : Option<&'a Array2<Polynomial<i128>>>,
+    //psi_k : Option<Vec<i128>>,
+    //omega_k : Option<&'a Vec<i128>>,
+    b_prime : Option<i128>,
 
     // JL projection matrix
-    Pi : Option<Vec<Array2<i64>>>,
+    Pi : Option<Vec<Array2<i128>>>,
 }
 
 impl Verifier {
@@ -40,14 +40,14 @@ impl Verifier {
         // LINE 3
         // Computing "a_prime_prime" matrices for all k up to upper_bound, storing those in a vector
 
-        let mut a_prime_prime : Vec<Array2<Polynomial<i64>>> = vec![];
+        let mut a_prime_prime : Vec<Array2<Polynomial<i128>>> = vec![];
         for k in 0..upper_bound {
             let mut a_prime_prime_mat = Array2::from_elem((R,R), Polynomial::new(vec![])); 
             for i in 0..R {
                 for j in 0..R {
-                    let mut sum : Polynomial<i64> = Polynomial::new(vec![]);
+                    let mut sum : Polynomial<i128> = Polynomial::new(vec![]);
                     for l in 0..L {
-                        let scaled : Polynomial<i64> = scale_polynomial(&st.a_prime_k[l][[i,j]], proof.psi[k][l] as f32);
+                        let scaled : Polynomial<i128> = scale_polynomial(&st.a_prime_k[l][[i,j]], proof.psi[k][l] as f32);
                         sum = sum + scaled;
                     }
                     a_prime_prime_mat[[i,j]] = sum;
@@ -58,20 +58,20 @@ impl Verifier {
 
         // LINE 4
         // Computing "phi_i_prime_prime" vecs for each k (and all i's)
-        let mut phi_prime_prime_k : Vec<Vec<Vec<Polynomial<i64>>>> = vec![];
+        let mut phi_prime_prime_k : Vec<Vec<Vec<Polynomial<i128>>>> = vec![];
         for k in 0..upper_bound {
             // contains all phi_prime_prime_i for this particular k
-            let mut phi_prime_prime : Vec<Vec<Polynomial<i64>>> = vec![];
+            let mut phi_prime_prime : Vec<Vec<Polynomial<i128>>> = vec![];
             for i in 0..R {
                 // ith polynomial vec for this particular k
-                let mut sum : Vec<Polynomial<i64>> = vec![];
+                let mut sum : Vec<Polynomial<i128>> = vec![];
                 for l in 0..L {
                     // TODO yes, we'll make this faster eventually
                     let prod = scale_poly_vec(&st.phi_prime_k[k].column(i).to_vec(), proof.psi[k][l] as f32);
                     sum = add_poly_vec(&sum, &prod);
                 }
                 for j in 0..256 {
-                    let bolded_pi_poly_vec : Vec<Polynomial<i64>> = concat_coeff_reduction(&self.get_Pi_i(i).row(j).to_vec());
+                    let bolded_pi_poly_vec : Vec<Polynomial<i128>> = concat_coeff_reduction(&self.get_Pi_i(i).row(j).to_vec());
                     let conj = sigma_inv_vec(&bolded_pi_poly_vec);
                     let prod = scale_poly_vec(&conj, proof.omega[k][j] as f32);
                     sum = add_poly_vec(&sum, &prod);
@@ -87,13 +87,13 @@ impl Verifier {
         for i in 0..R {
             for j in 0..R {
                 // generate single a_ij
-                let mut a_ij : Polynomial<i64> = Polynomial::new(vec![]);
+                let mut a_ij : Polynomial<i128> = Polynomial::new(vec![]);
                 for k in 0..K {
-                    let prod : Polynomial<i64> = &proof.alpha[k] * &st.a_k[k][[i,j]];
+                    let prod : Polynomial<i128> = &proof.alpha[k] * &st.a_k[k][[i,j]];
                     a_ij = a_ij + prod;
                 }
                 for k in 0..upper_bound {
-                    let prod : Polynomial<i64> = &proof.beta[k] * &a_prime_prime[k][[i,j]];
+                    let prod : Polynomial<i128> = &proof.beta[k] * &a_prime_prime[k][[i,j]];
                     a_ij = a_ij + prod;
                 }
                 Aij[[i,j]] = a_ij;
@@ -102,9 +102,9 @@ impl Verifier {
 
         // LINE 6 
         // Forming a single canonical set of vectors "phi_i" for i in {0, ..., R-1}
-        let mut phi : Vec<Vec<Polynomial<i64>>> = vec![];
+        let mut phi : Vec<Vec<Polynomial<i128>>> = vec![];
         for i in 0..R {
-            let mut phi_i : Vec<Polynomial<i64>> = vec![]; 
+            let mut phi_i : Vec<Polynomial<i128>> = vec![]; 
             for k in 0..K {
                 let prod = poly_by_poly_vec(&proof.alpha[k], &st.phi_k[k].column(i).to_vec());
                 phi_i = add_poly_vec(&phi_i, &prod);
@@ -117,13 +117,13 @@ impl Verifier {
 
         // LINE 7
         // Forming a single canonical "b" polynomial
-        let mut b : Polynomial<i64> = Polynomial::new(vec![]);
+        let mut b : Polynomial<i128> = Polynomial::new(vec![]);
         for k in 0..K {
-            let prod : Polynomial<i64> = &proof.alpha[k] * &st.b_k[k];
+            let prod : Polynomial<i128> = &proof.alpha[k] * &st.b_k[k];
             b = b + prod;
         }
         for k in 0..upper_bound {
-            let prod : Polynomial<i64> = &proof.beta[k] * &proof.b_prime_prime[k];
+            let prod : Polynomial<i128> = &proof.beta[k] * &proof.b_prime_prime[k];
             b = b + prod;
         }
         
@@ -152,13 +152,13 @@ impl Verifier {
 
         // LINE 10
         // Decompose vec z into z = z^(0) + z^(1)b
-        let z_decompositions : Vec<Vec<Polynomial<i64>>> = decompose_polynomial_vec(&proof.z, *B, 2);
+        let z_decompositions : Vec<Vec<Polynomial<i128>>> = decompose_polynomial_vec(&proof.z, *B, 2);
 
         // LINE 11
         // Decompose vec t_i the same way
-        let mut t_decompositions: Vec<Vec<Vec<Polynomial<i64>>>> = vec![];
+        let mut t_decompositions: Vec<Vec<Vec<Polynomial<i128>>>> = vec![];
         for i in 0..R {
-            let t_i_decomposed : Vec<Vec<Polynomial<i64>>> = decompose_polynomial_vec(&proof.t_i_all[i], *B_1, *T_1);
+            let t_i_decomposed : Vec<Vec<Polynomial<i128>>> = decompose_polynomial_vec(&proof.t_i_all[i], *B_1, *T_1);
             t_decompositions.push(t_i_decomposed);
         } 
         
@@ -167,7 +167,7 @@ impl Verifier {
         let mut Gij_decompositions = Array2::from_elem((R,R), vec![]); 
         for i in 0..R {
             for j in 0..R {
-                let dec_gij: Vec<Polynomial<i64>> = decompose_polynomial(&proof.Gij[[i,j]], *B_2, *T_2);
+                let dec_gij: Vec<Polynomial<i128>> = decompose_polynomial(&proof.Gij[[i,j]], *B_2, *T_2);
                 Gij_decompositions[[i,j]] = dec_gij;
             }
         }
@@ -177,7 +177,7 @@ impl Verifier {
         let mut Hij_decompositions = Array2::from_elem((R,R), vec![]); 
         for i in 0..R {
             for j in 0..R {
-                let dec_hij: Vec<Polynomial<i64>> = decompose_polynomial(&proof.Hij[[i,j]], *B_1, *T_1);
+                let dec_hij: Vec<Polynomial<i128>> = decompose_polynomial(&proof.Hij[[i,j]], *B_1, *T_1);
                 Hij_decompositions[[i,j]] = dec_hij;
             }
         }
@@ -214,7 +214,7 @@ impl Verifier {
 
         // CHECK 15
         let mut lhs = polynomial_matrix_product(&crs.A_mat, &vec_to_column_array(&proof.z)).column(0).to_vec();
-        let mut rhs : Vec<Polynomial<i64>> = vec![];
+        let mut rhs : Vec<Polynomial<i128>> = vec![];
         for i in 0..R {
             let prod = poly_by_poly_vec(&proof.c[i], &proof.t_i_all[i]);
             let rhs = add_poly_vec(&rhs, &prod);
@@ -222,8 +222,8 @@ impl Verifier {
         if (lhs != rhs) { return false;}
 
         // CHECK 16
-        let lhs : Polynomial<i64> = polynomial_vec_inner_product(&proof.z, &proof.z);
-        let mut rhs : Polynomial<i64> = Polynomial::new(vec![]);
+        let lhs : Polynomial<i128> = polynomial_vec_inner_product(&proof.z, &proof.z);
+        let mut rhs : Polynomial<i128> = Polynomial::new(vec![]);
 
         for i in 0..R {
             for j in 0..R {
@@ -235,11 +235,11 @@ impl Verifier {
         }
 
         // CHECK 17
-        let mut lhs : Polynomial<i64> = Polynomial::new(vec![]);
+        let mut lhs : Polynomial<i128> = Polynomial::new(vec![]);
         for i in 0..R {
             lhs = lhs + polynomial_vec_inner_product(&phi[i], &proof.z) * &proof.c[i];
         }
-        let mut rhs : Polynomial<i64> = Polynomial::new(vec![]);
+        let mut rhs : Polynomial<i128> = Polynomial::new(vec![]);
         for i in 0..R {
             for j in 0..R {
                 rhs = rhs + (&proof.Hij[[i,j]] * &proof.c[i] * &proof.c[j]);
@@ -248,11 +248,11 @@ impl Verifier {
         if (lhs != rhs) { return false;}
     
         // CHECK 18
-        let mut s1 : Polynomial<i64> = Polynomial::new(vec![]);
-        let mut s2 : Polynomial<i64> = Polynomial::new(vec![]);
+        let mut s1 : Polynomial<i128> = Polynomial::new(vec![]);
+        let mut s2 : Polynomial<i128> = Polynomial::new(vec![]);
         for i in 0..R {
             for j in 0..R {
-                let prod : Polynomial<i64> = &Aij[[i,j]] * &proof.Gij[[i,j]];
+                let prod : Polynomial<i128> = &Aij[[i,j]] * &proof.Gij[[i,j]];
                 s1 = s1 + prod;
             }
             s2 = s2 + &proof.Hij[[i,i]];
@@ -261,7 +261,7 @@ impl Verifier {
         if ((s1 + s2 - b) != Polynomial::new(vec![])) { return false; }
 
         // CHECK 19
-        let mut u_1_candidate : Vec<Polynomial<i64>> = vec![Polynomial::<i64>::new(vec![]); KAPPA_1 as usize];
+        let mut u_1_candidate : Vec<Polynomial<i128>> = vec![Polynomial::<i128>::new(vec![]); KAPPA_1 as usize];
         for i in 0..R {
             for k in 0..(*T_1 as usize) {
                 let B_ik = crs.B_mat.get(&(i,k)).unwrap();
@@ -284,7 +284,7 @@ impl Verifier {
         if (&proof.u_1 != &u_1_candidate) { return false; }
 
         // CHECK 20
-        let mut u_2_candidate : Vec<Polynomial<i64>> = vec![Polynomial::<i64>::new(vec![]); KAPPA_2 as usize];
+        let mut u_2_candidate : Vec<Polynomial<i128>> = vec![Polynomial::<i128>::new(vec![]); KAPPA_2 as usize];
         for i in 0..R {
             for j in i..R {
                 for k in 0..(*T_1 as usize) {
@@ -301,13 +301,13 @@ impl Verifier {
     }
 
     
-    pub fn get_Pi_i(&self, i : usize) -> &Array2<i64> {
+    pub fn get_Pi_i(&self, i : usize) -> &Array2<i128> {
         &self.Pi.as_ref().unwrap()[i]
     }
 
 
     // TODO do we want to STORE alpha, beta in the Verifier struct?
-    pub fn fetch_alpha(&self) -> Vec<Polynomial<i64>> {
+    pub fn fetch_alpha(&self) -> Vec<Polynomial<i128>> {
         let mut alpha = vec![]; 
         for i in 0..K {
             alpha.push(generate_polynomial(Q,D));
@@ -315,7 +315,7 @@ impl Verifier {
         alpha
     }
 
-    pub fn fetch_beta(&self) -> Vec<Polynomial<i64>> {
+    pub fn fetch_beta(&self) -> Vec<Polynomial<i128>> {
         let mut beta = vec![]; 
         let upper_bound : usize = (128.0f64 / (Q as f64).log10()).ceil() as usize;
         for i in 0..upper_bound {
@@ -327,9 +327,9 @@ impl Verifier {
 
     // fetch a challenge polynomial from the challenge space \mathcal{C} satisfying a number of
     // criteria
-    pub fn fetch_challenge(&self) -> Polynomial<i64> {
+    pub fn fetch_challenge(&self) -> Polynomial<i128> {
         // particular challenge coefficient distribution described on page 6.
-        let mut coeff_dist : Vec<i64> = vec![];
+        let mut coeff_dist : Vec<i128> = vec![];
         for i in 0..23 {
             coeff_dist.push(0);
         }
@@ -352,9 +352,9 @@ impl Verifier {
         candidate
     }
 
-    pub fn generate_psi(&self) -> Vec<i64> {
+    pub fn generate_psi(&self) -> Vec<i128> {
         let mut rng = rand::thread_rng();
-        let mut psi_k: Vec<i64> = Vec::new();
+        let mut psi_k: Vec<i128> = Vec::new();
         for i in 0..L {
             psi_k.push(rng.gen_range(0..Q));
         }
@@ -362,9 +362,9 @@ impl Verifier {
     }
             
 
-    pub fn generate_omega(&self) -> Vec<i64> {
+    pub fn generate_omega(&self) -> Vec<i128> {
         let mut rng = rand::thread_rng();
-        let mut omega_k: Vec<i64> = Vec::new();
+        let mut omega_k: Vec<i128> = Vec::new();
         for i in 0..256 {
             omega_k.push(rng.gen_range(0..Q));
         }
@@ -373,7 +373,7 @@ impl Verifier {
     }
 
 
-    pub fn verify_b_prime_prime(&self, b_prime_prime_k : &Polynomial<i64>, omega_k: &Vec<i64>, psi_k : &Vec<i64>, projection: &Vec<i64>) -> bool {
+    pub fn verify_b_prime_prime(&self, b_prime_prime_k : &Polynomial<i128>, omega_k: &Vec<i128>, psi_k : &Vec<i128>, projection: &Vec<i128>) -> bool {
         // TODO again column vs row not sure.
         // Also self vs no self keyword not sure.
         let prod = vec_inner_product(omega_k, projection);
@@ -388,13 +388,13 @@ impl Verifier {
     }
 
 
-    pub fn sample_jl_projection(&mut self) -> &Array2<i64> {
+    pub fn sample_jl_projection(&mut self) -> &Array2<i128> {
 
         let between = Uniform::from(-1..=1);
 
         let mut rng = rand::thread_rng();
 
-        let mut Pi_i : Array2<i64> = Array2::zeros((256, N*(D as usize)));
+        let mut Pi_i : Array2<i128> = Array2::zeros((256, N*(D as usize)));
 
         for ((i, j), value) in Pi_i.indexed_iter_mut() {
             *value = between.sample(&mut rng);
@@ -410,7 +410,7 @@ impl Verifier {
     }
 
 
-    pub fn valid_projection(&mut self, projection: &Vec<i64>) -> bool {
+    pub fn valid_projection(&mut self, projection: &Vec<i128>) -> bool {
         let val : f64 = 128.;
         let norm = l2_norm(projection);
         println!("TOTAL NORM OF JL PROJECTION: {}, {}", norm, val.sqrt()*(BETA_BOUND as f64));
