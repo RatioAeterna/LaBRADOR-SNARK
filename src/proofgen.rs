@@ -314,10 +314,10 @@ pub fn generate_witness() -> Array2<Polynomial<i64>> {
     // total summed norm:
     let mut norm_sum: i64 = 0;
 
-
     for i in 0..N {
         for j in 0..R {
             let mut s_ij = generate_polynomial(Q, D);
+            // TODO fix clone
             S[[i,j]] = s_ij.clone();
             // add norm to norm sum
             norm_sum += poly_norm(&s_ij) as i64;

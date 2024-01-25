@@ -209,7 +209,7 @@ impl Verifier {
                 }
             }
         }
-        if (sum > *BETA_PRIME) { return false; }
+        if (sum > (*BETA_PRIME).powi(2)) { return false; }
 
 
         // CHECK 15
