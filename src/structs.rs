@@ -62,14 +62,17 @@ impl CRS {
 pub struct Transcript {
     // fields (see protocol)
     pub u_1 : Vec<Polynomial<i64>>,
+    // pub Pi_i : Vec<Array2<i64>>, TODO Yes, we want this in here eventually.
     pub projection : Vec<i64>,
     pub psi : Vec<Vec<i64>>, // note: This contains all ceil(128/log(q)) psi_k
     pub omega : Vec<Vec<i64>>, // note: This contains all ceil(128/log(q)) omega_k
+    pub b_prime_prime: Vec<Polynomial<i64>>,
     pub alpha : Vec<Polynomial<i64>>,
     pub beta : Vec<Polynomial<i64>>,
     pub u_2 : Vec<Polynomial<i64>>,
     pub c : Vec<Polynomial<i64>>,
     pub z : Vec<Polynomial<i64>>,
+    pub t_i_all : Vec<Vec<Polynomial<i64>>>, // TODO forgive the slightly goofy name will fix later
     pub Gij : Array2<Polynomial<i64>>,
     pub Hij : Array2<Polynomial<i64>>,
 }
@@ -118,10 +121,10 @@ impl State {
 
         // random generation of random polynomial matrix Phi
         let mut Phi = Array2::from_elem((N,R), Polynomial::new(vec![])); 
-        for i in 0..N {
-            for j in 0..R {
-                let phi_ij = generate_polynomial(Q,D);
-                Phi[[i,j]] = phi_ij;
+        for i in 0..R {
+            for j in 0..N {
+                let phi_ji = generate_polynomial(Q,D);
+                Phi[[j,i]] = phi_ji;
             }
         }
 

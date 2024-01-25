@@ -33,19 +33,26 @@ impl<'a> Prover<'a> {
     pub fn proof_gen(&mut self, st : &State, crs : &CRS) -> Transcript {
         //let t = Array2::<i64>::zeros((M,R)); // Inner commitment vector 
         //let t = Array2<Polynomial<i64>>::zeros((R,N)); // Inner commitment vector ( After looking at this some more, I think this is the actual dimension. Unclear, however. )
-        let zero_poly = Polynomial::new(vec![0i64]);
-        let mut t = Array2::from_elem((R,N), zero_poly);
+        
+        //let zero_poly = Polynomial::new(vec![0i64]);
+        //let mut t = Array2::from_elem((R,N), zero_poly);
+        let mut t_i_all : Vec<Vec<Polynomial<i64>>> = vec![];
 
         // Compute inner Ajtai commitments
         // t_i = As_i \in R_q^\kappa (should just be m-dimensional)
         for i in 0..R {
-            //let t_i = A.clone().dot(S.t().column(i)); // we need to compute the transpose of S for this product to work (for some reason) // we need to compute the transpose of S for this product to work (for some reason)
-            let t_i = polynomial_matrix_product(&crs.A_mat, &self.S.t().column(i).to_owned().insert_axis(Axis(1))); // we need to compute the transpose of S for this product to work (for some reason) // we need to compute the transpose of S for this product to work (for some reason)
+            // TODO this doesn't look nice, fix later
+            let column = self.S.column(i).to_owned(); // Convert column view to an owned 1D array
+            // TODO this is also bad because you're hardcoding N for now. Fix later.
+            let column_as_2d = column.into_shape((N as usize, 1)).unwrap(); // Reshape into 2D array with one column
+            let t_i = polynomial_matrix_product(&crs.A_mat, &column_as_2d).column(0).to_vec(); 
+            t_i_all.push(t_i);
+            /*
             println!("A dim {:?}", crs.A_mat.dim());
             println!("S.t() dim {:?}", self.S.t().dim());
             println!("S col dim {:?}", self.S.t().column(i).dim());
             println!("t_i dim: {:?}", t_i.dim());
-            t.column_mut(i).assign(&t_i.remove_axis(Axis(1)));
+            */
         }
         println!("Computed Inner Ajtai Commitments!");
 
@@ -66,10 +73,10 @@ impl<'a> Prover<'a> {
 
         let mut lhs = gen_empty_poly_vec(KAPPA_1 as usize);
         for i in 0..R {
-            let t_i : Vec<Vec<Polynomial<i64>>> = decompose_polynomial_vec(&t.column(i).to_vec(), *B_1, *T_1);
+            let t_i_decomposed : Vec<Vec<Polynomial<i64>>> = decompose_polynomial_vec(&t_i_all[i], *B_1, *T_1);
             for k in 0..(*T_1 as usize) {
                 let B_ik = crs.B_mat.get(&(i,k)).unwrap();
-                let t_mat = vec_to_column_array(&t_i[k]);
+                let t_mat = vec_to_column_array(&t_i_decomposed[k]);
                 // NOTE this line might look somewhat confusing, but consider that the matrix
                 // product is just a KAPPA_1 x 1 Array2 (which we turn into a vec by taking that
                 // first column
@@ -166,18 +173,21 @@ impl<'a> Prover<'a> {
                     // side note: consider that pi_i^(j) is the jth row of Pi_i for j = 1, ..., 256.
                     let Pi_i = self.verifier.get_Pi_i(i);
 
-                    let mut rhs : Polynomial<i64> = Polynomial::new(vec![]);
+                    let mut rhs : Vec<Polynomial<i64>> = vec![Polynomial::new(vec![]); N as usize];
 
                     for j in 0..256 {
-                        let bolded_pi_poly = Polynomial::new(Pi_i.row(j).to_vec());
-                        let conj = sigma_inv(&bolded_pi_poly);
+                        let bolded_pi_poly_vec : Vec<Polynomial<i64>> = concat_coeff_reduction(&Pi_i.row(j).to_vec());
+                        let conj = sigma_inv_vec(&bolded_pi_poly_vec);
                         let omega_k_j = omega.last().unwrap()[j];
 
-                        let res = scale_polynomial(&conj, omega_k_j as f32);
-                        rhs = rhs + res;
+                        //let res = scale_polynomial(&conj, omega_k_j as f32);
+                        //rhs = rhs + res;
+    
+                        let res = scale_poly_vec(&conj, omega_k_j as f32);
+                        rhs = add_poly_vec(&rhs, &res);
                     }
 
-                    let phi_i_prime_prime = add_poly_vec_by_poly(&lhs, &rhs); 
+                    let phi_i_prime_prime = add_poly_vec(&lhs, &rhs); 
                 }
                 phi_prime_prime_k.push(phi_i_prime_prime);
             }
@@ -198,7 +208,7 @@ impl<'a> Prover<'a> {
                 rhs = rhs + res;
             }
             let b_prime_prime_k = lhs + rhs;
-            //self.verifier.verify_b_prime_prime(b_prime_prime_k);
+            self.verifier.verify_b_prime_prime(&b_prime_prime_k, &omega.last().unwrap(), &psi.last().unwrap(), &projection);
 
             phi_prime_prime_vec.push(phi_prime_prime_k);
             b_prime_prime_vec.push(b_prime_prime_k);
@@ -275,7 +285,7 @@ impl<'a> Prover<'a> {
         }
 
         // TODO fill the proof transcript with all the relevant data and return
-        let proof_transcript : Transcript = Transcript { u_1, projection, psi, omega, alpha, beta, u_2, c : c_vec, z, Gij, Hij };
+        let proof_transcript : Transcript = Transcript { u_1, projection, psi, omega, b_prime_prime : b_prime_prime_vec, alpha, beta, u_2, c : c_vec, z, t_i_all, Gij, Hij };
         proof_transcript
     }
 

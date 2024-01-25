@@ -60,6 +60,18 @@ pub fn generate_polynomial_picky(q : i64, d : usize, mut coeff_dist : Vec<i64>) 
     poly
 }
 
+
+// Conjugation automorphism applied to a vector of polynomials
+pub fn sigma_inv_vec(vec: &Vec<Polynomial<i64>>) -> Vec<Polynomial<i64>> {
+    let mut res = vec![];
+    for i in 0..vec.len() {
+        res.push(sigma_inv(&vec[i]));
+    }
+    res
+}
+
+
+
 // The "Conjugation automorphism"
 // This basically replaces all powers of X^n with X^{-n} and then reduces modulo X^d+1 (R's
 // modulus) 
@@ -117,6 +129,15 @@ pub fn random_sample_Z_q(n : i64, q: i64) -> Vec<i64> {
     sample
 }
 
+// scales a given polynomial by a scale factor (usually < 1)
+pub fn scale_poly_vec(vec : &Vec<Polynomial<i64>>, s : f32) -> Vec<Polynomial<i64>> {
+    let mut new_vec = vec![];
+    for i in 0..vec.len() {
+        new_vec.push(scale_polynomial(&vec[i], s));
+    }
+    new_vec
+}
+
 
 // scales a given polynomial by a scale factor (usually < 1)
 pub fn scale_polynomial(p : &Polynomial<i64>, s : f32) -> Polynomial<i64> {
@@ -125,6 +146,13 @@ pub fn scale_polynomial(p : &Polynomial<i64>, s : f32) -> Polynomial<i64> {
     let scaled_poly_vec : Vec<i64> = poly_vec.iter().map(|&x| (((x as f32) * s).floor() as i64)).collect();
     return Polynomial::new(scaled_poly_vec);
 }
+
+pub fn vec_poly_norm_squared(vec: &Vec<Polynomial<i64>>) -> f64 {
+    vec.iter()
+        .map(|poly| poly_norm(poly))  // Compute the squared norm of each polynomial
+        .sum()  // Sum the squared norms
+}
+
 
 // takes the 2-norm of a given polynomial (squared)
 pub fn poly_norm(p : &Polynomial<i64>) -> f64 {
@@ -343,6 +371,21 @@ pub fn witness_coeff_concat(vec: &Vec<Polynomial<i64>>) -> Vec<i64> {
         }
     }
     coeffs
+}
+
+// Basically does the opposite of the above function
+// Takes a vec of straight ints of dimension N*D for some int N, and returns
+// N length vec of reconstructed Polynomials using the coefficients
+pub fn concat_coeff_reduction(vec: &Vec<i64>) -> Vec<Polynomial<i64>> {
+    assert!((vec.len() % (D as usize)) == 0, "dimension of vec is wrong");
+    let n = vec.len() / (D as usize);
+    let mut res = vec![];
+    for i in (0..(n*(D as usize))).step_by(D as usize) {
+        let new_vec = vec[i..(i+D as usize)].to_vec();         
+        let poly = Polynomial::new(new_vec);
+        res.push(poly);
+    }
+    res
 }
 
 // Convert the one-dimensional Array to a two-dimensional Array with one column
