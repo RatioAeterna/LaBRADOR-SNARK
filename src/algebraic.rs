@@ -13,7 +13,7 @@ use num_traits::Zero;
 
 // The ring of integers modulo q (Q in constants.rs)
 #[derive(Clone, Debug)]
-struct Z_q {
+pub struct Z_q {
     value: i128,
 }
 
@@ -64,7 +64,7 @@ impl std::ops::Mul for Z_q {
 
 // Wrapper for Polynomial<Z_q> which specifically uses
 // properties of R_q, aka Z[q]/(X^d+1)
-struct R_q(Polynomial<Z_q>);
+pub struct R_q(Polynomial<Z_q>);
 
 impl R_q {
 
@@ -120,4 +120,3 @@ impl std::ops::Mul for &R_q {
         prod_rq
     }
 }
-

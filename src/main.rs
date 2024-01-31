@@ -1,11 +1,10 @@
+pub mod algebraic;
 pub mod util;
 pub mod proofgen;
 pub mod constants;
 pub mod verification;
 pub mod structs;
 
-
-use polynomial::Polynomial;
 extern crate nalgebra as na;
 use na::{Matrix, DMatrix};
 use rand::prelude::*;
@@ -14,6 +13,7 @@ use rand::distributions::Uniform;
 use na::base::DVector;
 use ndarray::{Array2, concatenate};
 use ndarray_linalg::norm;
+use crate::algebraic::*;
 use crate::util::*;
 use crate::proofgen::*;
 use crate::constants::*;
@@ -24,6 +24,7 @@ use crate::verification::*;
     TODO: better organization for testing later.
     Right now we just test a bunch of util / misc. functions here haphazardly.
 */
+// TODO also look into using rustfmt with the LSP server, etc.
 
 //#[test]
 fn print_constants() {
@@ -99,6 +100,8 @@ fn main() {
 
     println!("Generating Witness Matrix S");
     let S = generate_witness();
+    //println!("sanity check of witness vals: {}", S[[0,0]].pretty("x"));
+    println!("sanity check of witness vals: {}", &S[[0,0]].pretty("x"));
 
     println!("Generating Common Reference String (CRS)");
     let crs = CRS::new();
@@ -113,6 +116,9 @@ fn main() {
     let proof_transcript : Transcript = prover.proof_gen(&st, &crs);
     println!("Generated proof!");
 
+    println!("Verifying proof..");
     let res : bool = verifier.verify(&st, proof_transcript, &crs);
+    assert!( res, "Error: Proof Verification Failed");
+    println!("Success: Proof Verified!");
 }
 

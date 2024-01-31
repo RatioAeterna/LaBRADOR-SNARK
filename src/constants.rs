@@ -10,9 +10,9 @@ pub const D: i128 = 64; // used in the paper
 
 // commitment ranks... TODO I have NO idea what these should actually be sized at. It doesn't seem
 // to be described in the paper. Tried 1024, seems to be... a bit large. We'll see.
-pub const KAPPA : i128 = 128;
-pub const KAPPA_1 : i128 = 128;
-pub const KAPPA_2 : i128 = 128;
+pub const KAPPA : usize = 128;
+pub const KAPPA_1 : usize = 128;
+pub const KAPPA_2 : usize = 128;
 
 // used for challenge polynomial generation
 pub const TAU : f64 = 71.0;
