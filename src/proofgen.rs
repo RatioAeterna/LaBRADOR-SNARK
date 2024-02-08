@@ -35,6 +35,7 @@ impl<'a> Prover<'a> {
     pub fn proof_gen(&mut self, st : &State, crs : &CRS) -> Transcript {
         let mut t_i_all : Vec<Vec<R_q>> = vec![];
 
+        println!("Generating inner Ajtai commitments...");
         // Compute inner Ajtai commitments
         // t_i = As_i \in R_q^\kappa (should just be m-dimensional)
         for i in 0..R {

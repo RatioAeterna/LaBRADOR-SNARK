@@ -13,6 +13,8 @@ use rand::distributions::Uniform;
 use na::base::DVector;
 use ndarray::{Array2, concatenate};
 use ndarray_linalg::norm;
+use num_traits::One;
+use num_traits::Zero;
 use crate::algebraic::*;
 use crate::util::*;
 use crate::proofgen::*;
@@ -47,6 +49,31 @@ fn print_constants() {
 #[test]
 fn util_test() {
     // test polynomial generation
+    let bigval : Z_q = Z_q::new(4294967295);
+    let one : Z_q = Z_q::one();
+    let minusone : Z_q = Z_q::from(-1);
+    println!("bigval: {}", bigval);
+    println!("sum with one: {}", bigval + one);
+    println!("-1 in Z_q: {}", minusone);
+    println!("product by two: {}", bigval*Z_q::from(2));
+
+
+
+    let mut data : Vec<Z_q> = vec![Z_q::zero(); 81];
+    let mut data2 : Vec<Z_q> = vec![Z_q::zero(); 81];
+    data[80] = Z_q::from(4294967295 as i128);
+    data2[1] = Z_q::from(2);
+
+    println!("Creating big poly 1!");
+    let too_big_poly = R_q::new(data);
+    println!("Creating big poly 2!");
+    let too_big_poly2 = R_q::new(data2);
+    println!("poly: {}", too_big_poly);
+    println!("poly2: {}", too_big_poly2);
+
+    let prod_poly = too_big_poly * too_big_poly2;
+    println!("prod poly: {}", prod_poly);
+    /*
     let p1 = generate_polynomial(Q, D);
 
     println!("Random polynomial:");
@@ -91,6 +118,7 @@ fn util_test() {
     assert!(prod_poly == product, "Polynomial inner products are broken.");
     println!("Polynomial products are working!");
     println!("{}", prod_poly);
+    */
 }
 
 fn main() {

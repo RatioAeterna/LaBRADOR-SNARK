@@ -5,14 +5,26 @@ use polynomial::Polynomial;
 use rand::prelude::*;
 use rand::{Rng, SeedableRng};
 use crate::constants::*;
+use nalgebra::min;
 use num_traits::Zero;
 use num_traits::One;
 use std::cmp::Ordering;
 
 /*
  * Crate for various algebraic structure implementations
+ * and related functions
  *
  */
+
+pub fn mod_positive(dividend: i128, divisor: i128) -> i128 {
+    let remainder = dividend % divisor;
+    if remainder < 0 {
+        remainder + divisor
+    } else {
+        remainder
+    }
+}
+
 
 // The ring of integers modulo q (Q in constants.rs)
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialOrd)]
@@ -22,7 +34,7 @@ pub struct Z_q {
 
 impl Z_q {
     pub fn new(value: i128) -> Self {
-        Z_q { value : value % Q }
+        Z_q { value : mod_positive(value, Q) }
     }
     pub fn lift(vec : &Vec<i128>) -> Vec<Z_q> {
         let mut res_vec : Vec<Z_q> = vec![];
@@ -86,10 +98,6 @@ impl std::iter::Sum for Z_q {
         iter.fold(Self::zero(), |acc, x| acc + x)
     }
 }
-
-
-
-
 
 
 impl std::ops::Add for Z_q {
@@ -169,13 +177,13 @@ impl std::ops::Mul for &Z_q {
 
 impl std::ops::AddAssign<Z_q> for Z_q {
     fn add_assign(&mut self, other: Z_q) {
-        self.value = (self.value + other.value) % Q;
+        self.value = mod_positive((self.value + other.value), Q);
     }
 }
 
 impl std::ops::SubAssign<Z_q> for Z_q {
     fn sub_assign(&mut self, other: Z_q) {
-        self.value = (self.value - other.value) % Q;
+        self.value = mod_positive((self.value - other.value), Q);
     }
 }
 
@@ -239,13 +247,13 @@ impl PartialEq for Z_q {
 
 impl PartialEq<i128> for Z_q {
     fn eq(&self, other: &i128) -> bool {
-        self.value == (other % Q)
+        self.value == mod_positive(*other, Q)
     }
 }
 
 impl PartialOrd<i128> for Z_q {
     fn partial_cmp(&self, other: &i128) -> Option<Ordering> {
-        self.value.partial_cmp(&(other % Q))
+        self.value.partial_cmp(&(mod_positive(*other, Q)))
     }
 }
 
@@ -259,7 +267,7 @@ pub struct R_q(Polynomial<Z_q>);
 impl R_q {
     // TODO maybe overload so you can pass in refs instead..
     pub fn new(coefficients: Vec<Z_q>) -> Self {
-        R_q(Polynomial::new(coefficients))
+        R_q::reduction(coefficients)
     }
 
     pub fn data_vec(&self) -> Vec<Z_q> {
@@ -269,6 +277,42 @@ impl R_q {
     pub fn eval(&self,  x: Z_q) -> Z_q {
         self.0.eval(x)
     }
+
+    fn reduction(coefficients: Vec<Z_q>) -> R_q {
+        // REDUCE all terms of deg >= 64
+        // form a new polynomial from the "valid" slice of data that we have, i.e., indices 0..D
+        let data_len = coefficients.len();
+        let valid_coeffs = coefficients[..min(data_len, 64)].to_vec();
+        let sliced_poly : Polynomial<Z_q> = Polynomial::new(valid_coeffs);
+        let mut reduced_rq : R_q = R_q(sliced_poly);
+        if (data_len <= 64) {
+            return reduced_rq;
+        }
+
+        for deg in (D as usize)..data_len {
+            let term : Z_q = (&coefficients)[deg].clone();
+            // reduce the degree (which is > 64) by dividing it by 64
+            let factor = (-1i128).pow((deg / 64) as u32); // TODO too big ints?
+            let new_deg = deg % 64;
+
+            let mut term_poly_data = vec![Z_q::zero(); new_deg+1];
+            term_poly_data[new_deg] = term*factor;
+            let term_poly : R_q = R_q::new(term_poly_data);
+            reduced_rq = &reduced_rq + &term_poly;
+        }
+        reduced_rq
+    }
+
+    // base multiplication function called from everywhere else
+    fn multiply(lhs: &R_q, rhs: &R_q) -> R_q {
+        // Custom multiplication logic.
+        // We need to reduce by (X^d+1)
+        // TODO add NTT logic here later.
+        let prod : Polynomial<Z_q> = &lhs.0 * &rhs.0;
+        R_q::new(prod.data().to_vec())
+    }
+
+
 
 
 }
@@ -323,28 +367,7 @@ impl std::ops::Mul for R_q {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        // Custom multiplication logic.
-        // We need to reduce by (X^d+1)
-
-        // TODO add NTT logic here later.
-        let prod : Polynomial<Z_q> = &self.0 * &rhs.0;
-        let data_len = (&prod).data().len()+1;
-
-        let mut prod_rq = R_q(prod);
-
-        // REDUCE all terms of deg > 64
-        for deg in (D as usize)+1..data_len {
-            let term : Z_q = (&prod_rq).0.data()[deg].clone();
-            // reduce the degree (which is > 64) by dividing it by 64
-            let factor = (-1i128).pow((deg / 64) as u32); // TODO too big ints?
-            let new_deg = deg % 64;
-
-            let mut term_poly_data = vec![Z_q::zero(); deg+1];
-            term_poly_data[new_deg] = term*factor;
-            let term_poly : R_q = R_q::new(term_poly_data);
-            prod_rq = &prod_rq + &term_poly;
-        }
-        prod_rq
+        R_q::multiply(&self, &rhs) 
     }
 }
 
@@ -352,28 +375,7 @@ impl std::ops::Mul<&R_q> for R_q {
     type Output = Self;
 
     fn mul(self, rhs: &R_q) -> Self::Output {
-        // Custom multiplication logic.
-        // We need to reduce by (X^d+1)
-
-        // TODO add NTT logic here later.
-        let prod : Polynomial<Z_q> = &self.0 * &rhs.0;
-        let data_len = (&prod).data().len()+1;
-
-        let mut prod_rq = R_q(prod);
-
-        // REDUCE all terms of deg > 64
-        for deg in (D as usize)+1..data_len {
-            let term : Z_q = (&prod_rq).0.data()[deg].clone();
-            // reduce the degree (which is > 64) by dividing it by 64
-            let factor = (-1i128).pow((deg / 64) as u32); // TODO too big ints?
-            let new_deg = deg % 64;
-
-            let mut term_poly_data = vec![Z_q::zero(); deg+1];
-            term_poly_data[new_deg] = term*factor;
-            let term_poly : R_q = R_q::new(term_poly_data);
-            prod_rq = &prod_rq + &term_poly;
-        }
-        prod_rq
+        R_q::multiply(&self, rhs) 
     }
 }
 
@@ -412,28 +414,7 @@ impl std::ops::Mul for &R_q {
     type Output = R_q;
         
     fn mul(self, rhs: Self) -> Self::Output {
-        // Custom multiplication logic.
-        // We need to reduce by (X^d+1)
-
-        // TODO add NTT logic here later.
-        let prod : Polynomial<Z_q> = &self.0 * &rhs.0;
-        let data_len = (&prod).data().len()+1;
-
-        let mut prod_rq = R_q(prod);
-
-        // REDUCE all terms of deg > 64
-        for deg in (D as usize)+1..data_len {
-            let term : Z_q = (&prod_rq).0.data()[deg].clone();
-            // reduce the degree (which is > 64) by dividing it by 64
-            let factor = (-1i128).pow((deg / 64) as u32); // TODO too big ints?
-            let new_deg = deg % 64;
-
-            let mut term_poly_data = vec![Z_q::zero(); deg+1];
-            term_poly_data[new_deg] = term*factor;
-            let term_poly : R_q = R_q::new(term_poly_data);
-            prod_rq = &prod_rq + &term_poly;
-        }
-        prod_rq
+        R_q::multiply(self, &rhs)
     }
 }
 
@@ -442,28 +423,7 @@ impl std::ops::Mul<R_q> for &R_q {
     type Output = R_q;
         
     fn mul(self, rhs: R_q) -> Self::Output {
-        // Custom multiplication logic.
-        // We need to reduce by (X^d+1)
-
-        // TODO add NTT logic here later.
-        let prod : Polynomial<Z_q> = &self.0 * &rhs.0;
-        let data_len = (&prod).data().len()+1;
-
-        let mut prod_rq = R_q(prod);
-
-        // REDUCE all terms of deg > 64
-        for deg in (D as usize)+1..data_len {
-            let term : Z_q = (&prod_rq).0.data()[deg].clone();
-            // reduce the degree (which is > 64) by dividing it by 64
-            let factor = (-1i128).pow((deg / 64) as u32); // TODO too big ints?
-            let new_deg = deg % 64;
-
-            let mut term_poly_data = vec![Z_q::zero(); deg+1];
-            term_poly_data[new_deg] = term*factor;
-            let term_poly : R_q = R_q::new(term_poly_data);
-            prod_rq = &prod_rq + &term_poly;
-        }
-        prod_rq
+        R_q::multiply(self, &rhs)
     }
 }
 
@@ -472,8 +432,6 @@ impl PartialEq for R_q {
         self.0 == other.0
     }
 }
-
-
 
 
 impl fmt::Display for R_q {
