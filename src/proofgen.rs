@@ -45,16 +45,11 @@ impl<'a> Prover<'a> {
             let column_as_2d = column.into_shape((N as usize, 1)).unwrap(); // Reshape into 2D array with one column
             let t_i = polynomial_matrix_product(&crs.A_mat, &column_as_2d).column(0).to_vec(); 
             t_i_all.push(t_i);
-            /*
-            println!("A dim {:?}", crs.A_mat.dim());
-            println!("S.t() dim {:?}", self.S.t().dim());
-            println!("S col dim {:?}", self.S.t().column(i).dim());
-            println!("t_i dim: {:?}", t_i.dim());
-            */
         }
         println!("Computed Inner Ajtai Commitments!");
 
 
+        println!("Generating Gij...");
         // NOTE: This is a symmetric matrix
         let mut Gij = Array2::from_elem((R,R), R_q::new(vec![])); 
         for i in 0..R {
@@ -68,7 +63,9 @@ impl<'a> Prover<'a> {
                 }
             }
         }
+        println!("Finished generating Gij.");
 
+        println!("Generating polynomial decomposition of t_i");
         let mut lhs = gen_empty_poly_vec(KAPPA_1 as usize);
         for i in 0..R {
             let t_i_decomposed : Vec<Vec<R_q>> = decompose_polynomial_vec(&t_i_all[i], *B_1, *T_1);
@@ -83,6 +80,7 @@ impl<'a> Prover<'a> {
             }
         }
 
+        println!("Generating polynomial decomposition of g_i");
         let mut rhs = gen_empty_poly_vec(KAPPA_2 as usize);
         for i in 0..R {
             for j in i..R {
@@ -96,11 +94,13 @@ impl<'a> Prover<'a> {
             }
         }
 
+        println!("Generating u_1...");
         // TODO investigate weird discrepancy between KAPPA_1 and KAPPA_2 dimension... 
         // FOR NOW, we assume they are equal rank. But I *think* you zero pad rhs if this isn't the
         // case.
         let u_1 : Vec<R_q> = add_poly_vec(&lhs, &rhs);
 
+        println!("Computing JL projection...");
         // Next, compute JL projection
         let mut projection = self.jl_project();
         while !self.verifier.valid_projection(&projection) {
@@ -129,6 +129,7 @@ impl<'a> Prover<'a> {
         let mut b_prime_prime_vec : Vec<R_q> = vec![];
 
 
+        println!("First aggregation step...");
         for k in 1..(upper_bound+1) {
             let psi_k = self.verifier.generate_psi();
             let omega_k = self.verifier.generate_omega();
@@ -208,9 +209,12 @@ impl<'a> Prover<'a> {
             b_prime_prime_vec.push(b_prime_prime_k);
         }
 
+        println!("fetching alpha and beta...");
+        
         let alpha : Vec<R_q> = self.verifier.fetch_alpha();
         let beta : Vec<R_q> = self.verifier.fetch_beta();
 
+        println!("Generating phi final..");
         let mut phi_final : Vec<Vec<R_q>> = vec![];
         for i in 0..R {
             let mut lhs : Vec<R_q> = gen_empty_poly_vec(N);
@@ -226,7 +230,7 @@ impl<'a> Prover<'a> {
             phi_final.push(add_poly_vec(&lhs, &rhs));
         }
 
-
+        println!("Generating Hij..");
         // NOTE: This is *also* a symmetric matrix
         let mut Hij = Array2::from_elem((R,R), R_q::new(vec![])); 
         for i in 0..R {
@@ -246,6 +250,7 @@ impl<'a> Prover<'a> {
             }
         }
 
+        println!("Computing u_2...");
         // Compute u_2
         let mut u_2 : Vec<R_q> = vec![R_q::new(vec![]); KAPPA_2 as usize];
         for i in 1..(R+1) {
@@ -269,6 +274,7 @@ impl<'a> Prover<'a> {
         let mut z : Vec<R_q> = vec![R_q::new(vec![]); R as usize];
         let mut c_vec : Vec<R_q> = vec![];
 
+        println!("challenge polynomial fetching..");
         for i in 0..R {
             let c_i = self.verifier.fetch_challenge();
             c_vec.push(c_i);
@@ -278,6 +284,7 @@ impl<'a> Prover<'a> {
             }
         }
 
+        println!("Filling proof transcript.");
         // TODO fill the proof transcript with all the relevant data and return
         let proof_transcript : Transcript = Transcript { u_1, projection, psi, omega, b_prime_prime : b_prime_prime_vec, alpha, beta, u_2, c : c_vec, z, t_i_all, Gij, Hij };
         proof_transcript
