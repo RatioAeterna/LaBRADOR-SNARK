@@ -3,7 +3,9 @@ use rand::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand::distributions::Uniform;
 
+use num_traits::Zero;
 use crate::util::*;
+use crate::algebraic::*;
 use crate::constants::*;
 use crate::structs::*;
 
@@ -15,7 +17,8 @@ pub struct Verifier {
     b_prime : Option<Z_q>,
 
     // JL projection matrix
-    Pi : Option<Vec<Array2<Z_q>>>,
+    // elements of i128, not Z_q, since it's a bunch of random uniform {-1,0,1}
+    Pi : Option<Vec<Array2<i128>>>,
 }
 
 impl Verifier {
@@ -46,7 +49,7 @@ impl Verifier {
                 for j in 0..R {
                     let mut sum : R_q = R_q::new(vec![]);
                     for l in 0..L {
-                        let scaled : R_q = scale_polynomial(&st.a_prime_k[l][[i,j]], proof.psi[k][l] as f32);
+                        let scaled : R_q = scale_polynomial(&st.a_prime_k[l][[i,j]], f32::from(proof.psi[k][l]));
                         sum = sum + scaled;
                     }
                     a_prime_prime_mat[[i,j]] = sum;
@@ -66,13 +69,13 @@ impl Verifier {
                 let mut sum : Vec<R_q> = vec![];
                 for l in 0..L {
                     // TODO yes, we'll make this faster eventually
-                    let prod = scale_poly_vec(&st.phi_prime_k[k].column(i).to_vec(), proof.psi[k][l] as f32);
+                    let prod = scale_poly_vec(&st.phi_prime_k[k].column(i).to_vec(), f32::from(proof.psi[k][l]));
                     sum = add_poly_vec(&sum, &prod);
                 }
                 for j in 0..256 {
-                    let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&self.get_Pi_i(i).row(j).to_vec());
+                    let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Z_q::lift(&self.get_Pi_i(i).row(j).to_vec()));
                     let conj = sigma_inv_vec(&bolded_pi_poly_vec);
-                    let prod = scale_poly_vec(&conj, proof.omega[k][j] as f32);
+                    let prod = scale_poly_vec(&conj, f32::from(proof.omega[k][j]));
                     sum = add_poly_vec(&sum, &prod);
                 }
                 phi_prime_prime.push(sum);
@@ -260,7 +263,7 @@ impl Verifier {
         if ((s1 + s2 - b) != R_q::new(vec![])) { return false; }
 
         // CHECK 19
-        let mut u_1_candidate : Vec<R_q> = vec![R_q::<Z_q>::new(vec![]); KAPPA_1 as usize];
+        let mut u_1_candidate : Vec<R_q> = vec![R_q::new(vec![]); KAPPA_1 as usize];
         for i in 0..R {
             for k in 0..(*T_1 as usize) {
                 let B_ik = crs.B_mat.get(&(i,k)).unwrap();
@@ -283,7 +286,7 @@ impl Verifier {
         if (&proof.u_1 != &u_1_candidate) { return false; }
 
         // CHECK 20
-        let mut u_2_candidate : Vec<R_q> = vec![R_q::<Z_q>::new(vec![]); KAPPA_2 as usize];
+        let mut u_2_candidate : Vec<R_q> = vec![R_q::new(vec![]); KAPPA_2 as usize];
         for i in 0..R {
             for j in i..R {
                 for k in 0..(*T_1 as usize) {
@@ -300,7 +303,7 @@ impl Verifier {
     }
 
     
-    pub fn get_Pi_i(&self, i : usize) -> &Array2<Z_q> {
+    pub fn get_Pi_i(&self, i : usize) -> &Array2<i128> {
         &self.Pi.as_ref().unwrap()[i]
     }
 
@@ -330,13 +333,13 @@ impl Verifier {
         // particular challenge coefficient distribution described on page 6.
         let mut coeff_dist : Vec<Z_q> = vec![];
         for i in 0..23 {
-            coeff_dist.push(0);
+            coeff_dist.push(Z_q::from(0));
         }
         for i in 0..31 {
-            coeff_dist.push(1);
+            coeff_dist.push(Z_q::from(1));
         }
         for i in 0..10 {
-            coeff_dist.push(2);
+            coeff_dist.push(Z_q::from(2));
         }
 
         let candidate = generate_polynomial_picky(Q,D as usize, coeff_dist.clone());
@@ -355,7 +358,7 @@ impl Verifier {
         let mut rng = rand::thread_rng();
         let mut psi_k: Vec<Z_q> = Vec::new();
         for i in 0..L {
-            psi_k.push(rng.gen_range(0..Q));
+            psi_k.push(Z_q::from(rng.gen_range(0..Q)));
         }
         psi_k
     }
@@ -365,35 +368,35 @@ impl Verifier {
         let mut rng = rand::thread_rng();
         let mut omega_k: Vec<Z_q> = Vec::new();
         for i in 0..256 {
-            omega_k.push(rng.gen_range(0..Q));
+            omega_k.push(Z_q::from(rng.gen_range(0..Q)));
         }
         //self.omega_k = Some(&omega_k);
         omega_k 
     }
 
 
-    pub fn verify_b_prime_prime(&self, b_prime_prime_k : &R_q, omega_k: &Vec<Z_q>, psi_k : &Vec<Z_q>, projection: &Vec<Z_q>) -> bool {
+    pub fn verify_b_prime_prime(&self, b_prime_prime_k : &R_q, omega_k: &Vec<Z_q>, psi_k : &Vec<Z_q>, projection: &Vec<i128>) -> bool {
         // TODO again column vs row not sure.
         // Also self vs no self keyword not sure.
-        let prod = vec_inner_product(omega_k, projection);
-        let mut sum = 0;
+        let prod = Z_q::from(vec_inner_product(&Z_q::lift_inv(omega_k), projection));
+        let mut sum = Z_q::zero();
         for i in 0..L {
             sum += &psi_k[i] * &(self.b_prime.unwrap());
         }
         let check_val = prod + sum;
 
         // check that the constant term is equal to the above stuff.
-        b_prime_prime_k.eval(0) == check_val
+        b_prime_prime_k.eval(Z_q::zero()) == check_val
     }
 
 
-    pub fn sample_jl_projection(&mut self) -> &Array2<Z_q> {
+    pub fn sample_jl_projection(&mut self) -> &Array2<i128> {
 
         let between = Uniform::from(-1..=1);
 
         let mut rng = rand::thread_rng();
 
-        let mut Pi_i : Array2<Z_q> = Array2::zeros((256, N*(D as usize)));
+        let mut Pi_i : Array2<i128> = Array2::zeros((256, N*(D as usize)));
 
         for ((i, j), value) in Pi_i.indexed_iter_mut() {
             *value = between.sample(&mut rng);
@@ -409,7 +412,7 @@ impl Verifier {
     }
 
 
-    pub fn valid_projection(&mut self, projection: &Vec<Z_q>) -> bool {
+    pub fn valid_projection(&mut self, projection: &Vec<i128>) -> bool {
         let val : f64 = 128.;
         let norm = l2_norm(projection);
         println!("TOTAL NORM OF JL PROJECTION: {}, {}", norm, val.sqrt()*(BETA_BOUND as f64));

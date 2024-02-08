@@ -50,7 +50,7 @@ fn util_test() {
     let p1 = generate_polynomial(Q, D);
 
     println!("Random polynomial:");
-    println!("{}", p1.pretty("x"));
+    println!("{}", p1);
 
 
     // test random sampling Z_q
@@ -62,13 +62,13 @@ fn util_test() {
     let scale: f32 = 0.5;
     let p2 = scale_polynomial(p1, scale);
     println!("Polynomial scaled by {:.32}:", scale);
-    println!("{}", p2.pretty("x"));
+    println!("{}", p2);
 
     let S = generate_witness();
     println!("Generated witness matrix S:");
     for row in S.rows() {
         for poly in row {
-            println!("{}", poly.pretty("x"));
+            println!("{}", poly);
         }
     }
 
@@ -90,7 +90,7 @@ fn util_test() {
     let prod_poly = polynomial_vec_inner_product(vec_a, vec_b);
     assert!(prod_poly == product, "Polynomial inner products are broken.");
     println!("Polynomial products are working!");
-    println!("{}", prod_poly.pretty("x"));
+    println!("{}", prod_poly);
 }
 
 fn main() {
@@ -100,8 +100,8 @@ fn main() {
 
     println!("Generating Witness Matrix S");
     let S = generate_witness();
-    //println!("sanity check of witness vals: {}", S[[0,0]].pretty("x"));
-    println!("sanity check of witness vals: {}", &S[[0,0]].pretty("x"));
+    //println!("sanity check of witness vals: {}", S[[0,0]]);
+    println!("sanity check of witness vals: {}", &S[[0,0]]);
 
     println!("Generating Common Reference String (CRS)");
     let crs = CRS::new();

@@ -8,6 +8,7 @@ use crate::util::*;
 use crate::constants::*;
 use crate::verification::*;
 use crate::structs::*;
+use num_traits::Zero;
 
 
 pub struct Prover<'a> {
@@ -168,14 +169,14 @@ impl<'a> Prover<'a> {
                     let mut rhs : Vec<R_q> = vec![R_q::new(vec![]); N as usize];
 
                     for j in 0..256 {
-                        let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Pi_i.row(j).to_vec());
+                        let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Z_q::lift(&Pi_i.row(j).to_vec()));
                         let conj = sigma_inv_vec(&bolded_pi_poly_vec);
                         let omega_k_j = omega.last().unwrap()[j];
 
                         //let res = scale_polynomial(&conj, omega_k_j as f32);
                         //rhs = rhs + res;
     
-                        let res = scale_poly_vec(&conj, omega_k_j as f32);
+                        let res = scale_poly_vec(&conj, f32::from(omega_k_j));
                         rhs = add_poly_vec(&rhs, &res);
                     }
 
@@ -184,7 +185,7 @@ impl<'a> Prover<'a> {
                 phi_prime_prime_k.push(phi_i_prime_prime);
             }
 
-            let mut lhs = R_q::new(vec![0Z_q]);
+            let mut lhs = R_q::new(vec![Z_q::zero()]);
             for i in 0..R {
                 for j in 0..R {
                     // TODO I think this is S column, but might be row. Double check later.
@@ -194,7 +195,7 @@ impl<'a> Prover<'a> {
                 }
             }
 
-            let mut rhs = R_q::new(vec![0Z_q]);
+            let mut rhs = R_q::new(vec![Z_q::zero()]);
             for i in 0..R {
                 let res = polynomial_vec_inner_product(&phi_prime_prime_k[i], &self.S.column(i).to_vec());
                 rhs = rhs + res;
@@ -245,7 +246,7 @@ impl<'a> Prover<'a> {
         }
 
         // Compute u_2
-        let mut u_2 : Vec<R_q> = vec![R_q::<Z_q>::new(vec![]); KAPPA_2 as usize];
+        let mut u_2 : Vec<R_q> = vec![R_q::new(vec![]); KAPPA_2 as usize];
         for i in 1..(R+1) {
             for j in i..(R+1) {
                 for k in 0..(*T_1 as usize) {
@@ -281,12 +282,12 @@ impl<'a> Prover<'a> {
         proof_transcript
     }
 
-    pub fn jl_project(&mut self) -> Vec<Z_q> {
+    pub fn jl_project(&mut self) -> Vec<i128> {
         // verifier sends random matrices in {-1,0,1}
-        let mut projection : Vec<Z_q> = vec![0 ; 256];
+        let mut projection : Vec<i128> = vec![0 ; 256];
         for i in 0..R {
             let Pi_i = self.verifier.sample_jl_projection();
-            let s_i_coeffs : Array2<Z_q> = vec_to_column_array(&witness_coeff_concat(&self.S.column(i).to_vec()));
+            let s_i_coeffs : Array2<i128> = vec_to_column_array(&Z_q::lift_inv(&witness_coeff_concat(&self.S.column(i).to_vec())));
             // NOTE: for reference, this is a 256x(ND) multiplied by an (ND)x1, giving a 256x1
             // which we turn into a vec
             let product = matmul(Pi_i, &s_i_coeffs).column(0).to_vec();
@@ -304,7 +305,7 @@ pub fn generate_witness() -> Array2<R_q> {
     // Random Generation of Witness matrix S
     
     // total summed norm:
-    let mut norm_sum: Z_q = 0;
+    let mut norm_sum: Z_q = Z_q::zero();
 
     for i in 0..N {
         for j in 0..R {
@@ -312,13 +313,13 @@ pub fn generate_witness() -> Array2<R_q> {
             // TODO fix clone
             S[[i,j]] = s_ij.clone();
             // add norm to norm sum
-            norm_sum += poly_norm(&s_ij) as Z_q;
+            norm_sum += Z_q::from(poly_norm(&s_ij));
         }
     }
 
     // if too big, scale down:
-    if norm_sum > (Z_q::pow(BETA_BOUND,2)) {
-        let scale_factor: f32 = (Z_q::pow(BETA_BOUND, 2) as f32) / (norm_sum as f32);
+    if norm_sum > (i128::pow(BETA_BOUND,2)) {
+        let scale_factor: f32 = (i128::pow(BETA_BOUND, 2) as f32) / (f32::from(norm_sum));
         //println!("scale factor! {}", scale_factor);
         // scale each polynomial in the matrix by scale factor
         for i in 0..N {
@@ -327,6 +328,6 @@ pub fn generate_witness() -> Array2<R_q> {
             }
         }
     }
-    //println!("SUPER SNITY CHECK VAL!! {}", S[[0,0]].clone().pretty("x"));
+    //println!("SUPER SNITY CHECK VAL!! {}", S[[0,0]].clone());
     S
 }

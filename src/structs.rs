@@ -71,7 +71,7 @@ pub struct Transcript {
     // fields (see protocol)
     pub u_1 : Vec<R_q>,
     // pub Pi_i : Vec<Array2<Z_q>>, TODO Yes, we want this in here eventually.
-    pub projection : Vec<Z_q>,
+    pub projection : Vec<i128>,
     pub psi : Vec<Vec<Z_q>>, // note: This contains all ceil(128/log(q)) psi_k
     pub omega : Vec<Vec<Z_q>>, // note: This contains all ceil(128/log(q)) omega_k
     pub b_prime_prime: Vec<R_q>,
@@ -123,7 +123,7 @@ impl State {
         println!("Generated Aij!");
         for row in Aij.rows() {
             for poly in row {
-                println!("{}", poly.pretty("x"));
+                println!("{}", poly);
             }
         }
 
@@ -144,9 +144,9 @@ impl State {
                 let vec = &S.column(i).to_vec();
                 let vec2 = &S.column(j).to_vec();
                 for k in 0..vec.len() {
-                    println!("VEC I ENTRY: {} ", vec[k].pretty("x"));
-                    println!("VEC J ENTRY: {} ", vec2[k].pretty("x"));
-                    println!("SANITY CHECK::: {} ", &S[[i,j]].pretty("x"));
+                    println!("VEC I ENTRY: {} ", vec[k]);
+                    println!("VEC J ENTRY: {} ", vec2[k]);
+                    println!("SANITY CHECK::: {} ", &S[[i,j]]);
                 }
 
                 let inner_prod = polynomial_vec_inner_product(&S.column(i).to_vec(), &S.column(j).to_vec());
@@ -163,10 +163,10 @@ impl State {
 
         let b : R_q = &a_product + &phi_product;
         println!("Generated b!");
-        println!("{}\n\n", b.pretty("x"));
+        println!("{}\n\n", b);
 
-        println!("A product: {}\n", a_product.pretty("x"));
-        println!("Phi product: {}", phi_product.pretty("x"));
+        println!("A product: {}\n", a_product);
+        println!("Phi product: {}", phi_product);
 
         (Phi, Aij, b)
     }
