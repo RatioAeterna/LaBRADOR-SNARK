@@ -9,6 +9,7 @@ use nalgebra::min;
 use num_traits::Zero;
 use num_traits::One;
 use std::cmp::Ordering;
+//use concrete_ntt::native64::Plan;
 
 /*
  * Crate for various algebraic structure implementations
@@ -214,6 +215,12 @@ impl From<Z_q> for f64 {
     }
 }
 
+impl From<Z_q> for i128 {
+    fn from(item: Z_q) -> Self {
+        item.value as i128
+    }
+}
+
 impl From<f32> for Z_q {
     fn from(item: f32) -> Self {
         Self::new(item as i128)
@@ -278,6 +285,15 @@ impl R_q {
         self.0.eval(x)
     }
 
+    pub fn get_term_of_deg(&self, deg : usize) -> R_q {
+        let datavec = self.0.data().to_vec();
+        if (datavec.len() <= deg) { return R_q::zero(); }
+        let coeff = datavec[deg];
+        let mut ret_rq = vec![Z_q::zero(); deg+1];
+        ret_rq[deg] = coeff;
+        R_q::new(ret_rq)
+    }
+
     fn reduction(coefficients: Vec<Z_q>) -> R_q {
         // REDUCE all terms of deg >= 64
         // form a new polynomial from the "valid" slice of data that we have, i.e., indices 0..D
@@ -308,14 +324,36 @@ impl R_q {
         // Custom multiplication logic.
         // We need to reduce by (X^d+1)
         // TODO add NTT logic here later.
+        
+        /*
+        if(*NTT_ENABLED) {
+            const N: usize = 32;
+            let plan = Plan::try_new(D as usize).unwrap();
+
+            let lhs_data = transform_slice_zq_to_u64((&lhs.0).data());
+            let rhs_data = transform_slice_zq_to_u64((&rhs.0).data());
+            let prod : Vec<u64> = vec![];
+
+            
+            negacylic_polymul(&prod, &lhs_data, &rhs_data);
+        }
+        */
+
+
+
         let prod : Polynomial<Z_q> = &lhs.0 * &rhs.0;
         R_q::new(prod.data().to_vec())
     }
-
-
-
-
 }
+
+
+/*
+fn transform_slice_zq_to_u64(slice: &[Z_q]) -> Vec<u64> {
+    slice.iter().map(|z| z.to_u128()).collect()
+}
+*/
+
+
 
 
 

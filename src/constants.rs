@@ -30,8 +30,10 @@ pub const L : usize = 1;
 
 
 // matrix dimensions: totally random for now and should be changed later
-pub const N : usize = 128; // NUMBER of ROWS of S
-pub const R : usize = 20; // Number of COLUMNS of S
+//pub const N : usize = 128; // NUMBER of ROWS of S
+pub const N : usize = 32; // NUMBER of ROWS of S
+//pub const R : usize = 20; // Number of COLUMNS of S
+pub const R : usize = 32; // Number of COLUMNS of S
 
 // setting bound for SIS 2-norm
 pub const BETA_BOUND : i128 = 65536;
@@ -65,6 +67,10 @@ lazy_static! {
     pub static ref GAMMA_2 : f64 = ((((*B_1 as f64).powi(2)*(*T_1 as f64)) / 12.0)*(((R as f64).powi(2)+(R as f64))/2.0)*(D as f64)).sqrt();
 
     pub static ref BETA_PRIME : f64 = (((2.0/(*B as f64).powi(2)) as f64)*(*GAMMA as f64).powi(2) + (*GAMMA_1 as f64).powi(2) + (*GAMMA_2 as f64).powi(2)).sqrt();
+
+    pub static ref NTT_ENABLED: bool = true;
+
+    pub static ref AVX512_ENABLED: bool = false;
 }
 
 

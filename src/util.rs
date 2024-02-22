@@ -1,7 +1,7 @@
 use ndarray::{Array2, Ix2, concatenate};
 use rand::prelude::*;
 use rand::{Rng, SeedableRng};
-use rand::distributions::Uniform;
+use rand::distributions::{Distribution, WeightedIndex, Uniform};
 // TODO yes, we're using this for now. No, it's not great. Yes, we will remove this later.
 use std::clone::Clone;
 use num_traits::Zero;
@@ -226,6 +226,8 @@ pub fn compute_total_norm(projection: &Array2<R_q>) -> f64 {
 }
 
 pub fn vec_inner_product(v1: &Vec<i128>, v2: &Vec<i128>) -> i128 {
+    //println!("v1 length: {}", v1.len());
+    //println!("v2 length: {}", v2.len());
     assert!(v1.len() == v2.len(), "inner product not defined on vectors of unequal length");
     let mut result : i128 = 0;
     for i in 0..v1.len() {
@@ -312,12 +314,14 @@ pub fn decompose_polynomial_vec(vec : &Vec<R_q>, base : i128, exp: i128) -> Vec<
 // computes the centered representative of a polynomial coefficient wrt a given base, i.e.,
 // returns a value in the range of [-b/2, b/2]
 pub fn centered_rep(mut val : Z_q, b: i128) -> Z_q {
+    //println!("centered representative computation! val: {}, b: {}", val, b);
     if val > b / 2 {
-        val -= Z_q::from(b);
+        //val -= Z_q::from(b);
+        //TODO mod here is probably redundant
+        return Z_q::new((b - i128::from(val)) % b);
     }
-    else if val <= (-b / 2) {
-        val += Z_q::from(b);
-    }
+    //println!("val transformed to: {}", val);
+    // no negative values are possible since this is Z_q, so we're done..
     val
 }
 
@@ -327,22 +331,44 @@ pub fn decompose_polynomial(p : &R_q, base : i128, exp: i128) -> Vec<R_q> {
     let poly_data_vec : Vec<Z_q> = p.data_vec();
 
     // this takes the form of, e.g., g_{ij} = g_{ij}^(0) + ... + g_{ij}^{t_2-1}b_2^{t_2-1}
+    // i.e., let's denote the whole polynomial a_j.
+    // then each element of decomp_vec is the k-th component of each decomposed coefficient, i.e.,
+    // a_j_k, found in the term a_j^(k)b^(k)
     let mut decomp_vec : Vec<R_q> = vec![R_q::new(vec![]); exp as usize];
+
+
+    // has length deg(p)+1. Each element is an exp length vector..
+    let mut decomposed_coeffs : Vec<R_q> = vec![R_q::new(vec![]); poly_data_vec.len()];
 
     // we decompose each coefficient a_j of the polynomial (which we can express as a base K 
 
     for deg in 0..poly_data_vec.len() {
-        let mut a_j = poly_data_vec[deg];
-        while a_j != 0 {
-            let a_jk = centered_rep(a_j % base, base);
-
-            let mut a_jk_poly_data = vec![Z_q::zero(); deg+1];
-            a_jk_poly_data[deg] = a_jk;
-            let a_jk_poly = R_q::new(a_jk_poly_data);
-            decomp_vec[deg] = &decomp_vec[deg] + &a_jk_poly;
-            a_j -= a_jk;
-            a_j = (a_j / base); // this is the next coefficient to decompose
+        let mut poly_coeff = poly_data_vec[deg];
+        //println!("deg: {}, coeff {}" , deg, poly_coeff);
+        let mut decomposed_coefficient : Vec<Z_q> = vec![]; // coefficients of decomposed
+                                                            // coefficient polynomial (soon to be)
+        while poly_coeff != 0 {
+            //println!("While loop!");
+            let remainder = centered_rep(poly_coeff % base, base);
+            decomposed_coefficient.push(remainder);
+            poly_coeff = (poly_coeff - remainder) / base;
+            //println!("remainder: {}. Poly coeff is now: {}", remainder, poly_coeff);
         }
+        //println!("PHEW! done with that loop. Now decomposed_coefficient: {:?}", decomposed_coefficient);
+        decomposed_coeffs[deg] = (R_q::new(decomposed_coefficient));
+    }
+    //println!("DONE!");
+
+    // Next, we transform the "decomposed_coeffs" into the actual decomp_vec by taking the k-th
+    // entries from each coefficient and putting them together..
+    for k in 0..exp {
+        let mut a_j_k : R_q = R_q::zero();
+        //println!("Decomposed coeffs len: {}", decomposed_coeffs.len());
+        for i in 0..decomposed_coeffs.len() {
+            //println!("decomposed coeff i: {}, k={}, polynomial: {}", i,k, &decomposed_coeffs[i]);
+            a_j_k = a_j_k + (&decomposed_coeffs[i]).get_term_of_deg(k as usize);
+        }
+        decomp_vec[k as usize] = a_j_k;
     }
     decomp_vec
 }
@@ -423,6 +449,7 @@ pub fn polynomial_vec_inner_product(v1: &[R_q], v2: &[R_q]) -> R_q {
 
 pub fn matmul(m1: &Array2<i128>, m2: &Array2<i128>) -> Array2<i128> {
     assert!(m1.shape()[1] == m2.shape()[0], "matrix product not defined on matrices which do not have dimension (m,n) x (n,k), for some m,n,k");
+    //println!("m1 shape: {:?} \n m2 shape: {:?}", m1.shape(), m2.shape());
     let m = m1.shape()[0];
     let k = m2.shape()[1];
 
@@ -430,7 +457,7 @@ pub fn matmul(m1: &Array2<i128>, m2: &Array2<i128>) -> Array2<i128> {
     for i in 0..m {
         for j in 0..k {
             let v1 = m1.row(i).to_vec();
-            let v2 = m1.column(j).to_vec();
+            let v2 = m2.column(j).to_vec();
             result[[i,j]] = vec_inner_product(&v1, &v2);
         }
     }
@@ -439,6 +466,7 @@ pub fn matmul(m1: &Array2<i128>, m2: &Array2<i128>) -> Array2<i128> {
 
 // compute the matrix product between two polynomial MATRICES (Array2, slightly different)
 pub fn polynomial_matrix_product(m1: &Array2<R_q>, m2: &Array2<R_q>) -> Array2<R_q> {
+    //println!("m1 shape: {:?} \n m2 shape: {:?}", m1.shape(), m2.shape());
     assert!(m1.shape()[1] == m2.shape()[0], "matrix product not defined on matrices which do not have dimension (m,n) x (n,k), for some m,n,k");
     let m = m1.shape()[0];
     let k = m2.shape()[1];
@@ -447,9 +475,60 @@ pub fn polynomial_matrix_product(m1: &Array2<R_q>, m2: &Array2<R_q>) -> Array2<R
     for i in 0..m {
         for j in 0..k {
             let v1 = m1.row(i).to_vec();
-            let v2 = m1.column(j).to_vec();
+            let v2 = m2.column(j).to_vec();
             result[[i,j]] = polynomial_vec_inner_product(&v1, &v2);
         }
     }
     result
 }
+
+pub fn sample_jl_projection_gen() -> Array2<i128> {
+
+    let between = Uniform::from(-1..=1);
+
+    let mut rng = rand::thread_rng();
+
+    let mut Pi_i : Array2<i128> = Array2::zeros((256, N*(D as usize)));
+
+    for ((i, j), value) in Pi_i.indexed_iter_mut() {
+        *value = between.sample(&mut rng);
+    }
+
+
+    // TODO don't entirely understand the functionality of this line.. but seems to work.
+    Pi_i 
+}
+
+pub fn jl_project_gen(vec: &Vec<i128>) -> Vec<i128> {
+    //let between = Uniform::from(-1..=1);
+    let mut rng = rand::thread_rng();
+    let choices = [-1,0,1];
+    let weights = [0.25, 0.5, 0.25];
+    let dist = WeightedIndex::new(&weights).unwrap();
+
+
+
+    // we get random matrices in {-1,0,1}
+    let mut projection : Vec<i128> = vec![0 ; 256];
+    //for i in 0..R {
+        //let Pi_i = sample_jl_projection_gen();
+        let mut Pi_i : Array2<i128> = Array2::zeros((256, N*(D as usize)));
+        for ((i, j), value) in Pi_i.indexed_iter_mut() {
+            *value = choices[dist.sample(&mut rng)] as i128;
+        }
+        //println!("Got Pi_i for i={}",i);
+        let s_i_coeffs : Array2<i128> = vec_to_column_array(vec);
+        println!("coeffs: {:?}", s_i_coeffs.column(0).to_vec());
+        println!("Pi_i column 0: {:?}", Pi_i.column(0).to_vec());
+        //println!("Got s_i coeffs");
+        // NOTE: for reference, this is a 256x(ND) multiplied by an (ND)x1, giving a 256x1
+        // which we turn into a vec
+        let product = matmul(&Pi_i, &s_i_coeffs).column(0).to_vec();
+        println!("JL PRODUCT! : {:?}", product);
+        //println!("computed product");
+        projection = add_vecs(&projection, &product);
+    //}
+    projection
+}
+
+

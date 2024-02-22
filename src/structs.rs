@@ -3,6 +3,7 @@ use rand::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand::distributions::Uniform;
 use std::collections::HashMap;
+use std::mem;
 
 use crate::algebraic::*;
 use crate::util::*;
@@ -32,9 +33,11 @@ impl CRS {
         
 
         // TODO maybe put this all in one loop to clean it up, but then again maybe not.
-        for i in 1..(R+1) {
+        // TODO it's technically 1 \leq i \leq j \leq R, i.e., 1..(R+1), but... we're not doing
+        // that, at least for now.
+        for i in 0..R {
             for k in 0..(*T_1 as usize) {
-                let B_ik = generate_random_matrix(KAPPA_1, N, Q, D);
+                let B_ik = generate_random_matrix(KAPPA_1, KAPPA, Q, D);
                 let index = (i,k);
                 B_mat.insert(index, B_ik);
             }
@@ -42,8 +45,8 @@ impl CRS {
 
         println!("Generating C matrices");
 
-        for i in 1..(R+1) {
-            for j in i..(R+1) {
+        for i in 0..R {
+            for j in i..R {
                 for k in 0..(*T_2 as usize) {
                     let C_ijk = generate_random_matrix(KAPPA_2, 1, Q, D);
                     let index = (i,j,k);
@@ -54,8 +57,8 @@ impl CRS {
 
         println!("Generating D matrices");
 
-        for i in 1..(R+1) {
-            for j in i..(R+1) {
+        for i in 0..R {
+            for j in i..R {
                 for k in 0..(*T_1 as usize) {
                     let D_ijk = generate_random_matrix(KAPPA_2, 1, Q, D);
                     let index = (i,j,k);
@@ -84,6 +87,32 @@ pub struct Transcript {
     pub Gij : Array2<R_q>,
     pub Hij : Array2<R_q>,
 }
+
+
+impl Transcript {
+
+    pub fn size_in_bytes(&self) -> usize {
+        let mut size = 0;
+        size += mem::size_of_val(&self.u_1);
+        // TODO add this back in
+        //size += mem::size_of_val(&self.Pi_i);
+        size += mem::size_of_val(&self.projection);
+        size += mem::size_of_val(&self.psi);
+        size += mem::size_of_val(&self.omega);
+        size += mem::size_of_val(&self.b_prime_prime);
+        size += mem::size_of_val(&self.alpha);
+        size += mem::size_of_val(&self.beta);
+        size += mem::size_of_val(&self.u_2);
+        size += mem::size_of_val(&self.c);
+        size += mem::size_of_val(&self.z);
+        size += mem::size_of_val(&self.t_i_all);
+        size += mem::size_of_val(&self.Gij);
+        size += mem::size_of_val(&self.Hij);
+        size
+    }
+}
+
+
 
 
 pub struct State {
@@ -121,11 +150,13 @@ impl State {
             }
         }
         println!("Generated Aij!");
+        /*
         for row in Aij.rows() {
             for poly in row {
                 println!("{}", poly);
             }
         }
+        */
 
         // random generation of random polynomial matrix Phi
         let mut Phi = Array2::from_elem((N,R), R_q::new(vec![])); 
@@ -144,9 +175,9 @@ impl State {
                 let vec = &S.column(i).to_vec();
                 let vec2 = &S.column(j).to_vec();
                 for k in 0..vec.len() {
-                    println!("VEC I ENTRY: {} ", vec[k]);
-                    println!("VEC J ENTRY: {} ", vec2[k]);
-                    println!("SANITY CHECK::: {} ", &S[[i,j]]);
+                    //println!("VEC I ENTRY: {} ", vec[k]);
+                    //println!("VEC J ENTRY: {} ", vec2[k]);
+                    //println!("SANITY CHECK::: {} ", &S[[i,j]]);
                 }
 
                 let inner_prod = polynomial_vec_inner_product(&S.column(i).to_vec(), &S.column(j).to_vec());
@@ -162,11 +193,11 @@ impl State {
         }
 
         let b : R_q = &a_product + &phi_product;
-        println!("Generated b!");
-        println!("{}\n\n", b);
+        //println!("Generated b!");
+        //println!("{}\n\n", b);
 
-        println!("A product: {}\n", a_product);
-        println!("Phi product: {}", phi_product);
+        //println!("A product: {}\n", a_product);
+        //println!("Phi product: {}", phi_product);
 
         (Phi, Aij, b)
     }

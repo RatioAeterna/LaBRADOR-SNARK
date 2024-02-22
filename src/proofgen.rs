@@ -103,8 +103,12 @@ impl<'a> Prover<'a> {
         println!("Computing JL projection...");
         // Next, compute JL projection
         let mut projection = self.jl_project();
+        println!("Computed projection..");
+        let mut rejections = 0;
         while !self.verifier.valid_projection(&projection) {
             println!("Verifier rejected projection!");
+            rejections += 1;
+            if(rejections > 2) {panic!("failed JL...");}
             projection = self.jl_project();
         }
         println!("JL Projection complete and accepted");
@@ -294,11 +298,14 @@ impl<'a> Prover<'a> {
         // verifier sends random matrices in {-1,0,1}
         let mut projection : Vec<i128> = vec![0 ; 256];
         for i in 0..R {
-            let Pi_i = self.verifier.sample_jl_projection();
+            let Pi_i : Array2<i128> = self.verifier.sample_jl_projection();
+            //println!("Got Pi_i for i={}",i);
             let s_i_coeffs : Array2<i128> = vec_to_column_array(&Z_q::lift_inv(&witness_coeff_concat(&self.S.column(i).to_vec())));
+            //println!("Got s_i coeffs");
             // NOTE: for reference, this is a 256x(ND) multiplied by an (ND)x1, giving a 256x1
             // which we turn into a vec
-            let product = matmul(Pi_i, &s_i_coeffs).column(0).to_vec();
+            let product = matmul(&Pi_i, &s_i_coeffs).column(0).to_vec();
+            //println!("computed product");
             projection = add_vecs(&projection, &product);
         }
         projection

@@ -2,46 +2,33 @@
   description = "Robust Implementation of the LaBRADOR Proof System";
 
   inputs = {
-    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*.tar.gz";
-    cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.11.0";
-    flake-utils.url = "github:numtide/flake-utils/v1.0.0";
+    nixpkgs.url = "nixpkgs/nixos-unstable"; # Adjusted to use nixos-unstable for simplicity
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = inputs: with inputs;
+  outputs = { self, nixpkgs, flake-utils, ... }: 
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ cargo2nix.overlays.default ];
+          # Removed cargo2nix overlay to simplify
         };
-        inherit (pkgs) lib;
-
-        rustPackageSet = pkgs.rustBuilder.makePackageSet {
-          rustVersion = "1.71.1";
-          extraRustComponents = [ "rustfmt" "clippy" ];
-        };
-
-        buildInputs = [
-          pkgs.cargo-all-features
-          pkgs.cargo-deny
-          pkgs.cargo-nextest
-          pkgs.rustup
-
-        workspaceShell = rustPackageSet.workspaceShell {
-          packages = buildInputs;
+        rustPackageSet = pkgs.rustPlatform.rust {
+          # Using rustPlatform to simplify Rust package management
+          packageFun = _: {}; # Placeholder, adjust as necessary
         };
       in
-      rec
       {
-        packages = {
-          default = mps { };
-          tests = mps { compileMode = "test"; };
-          ci = pkgs.rustBuilder.runTests mps {
-            RUST_BACKTRACE = "full";
-          };
+        devShell = pkgs.mkShell {
+          buildInputs = with pkgs; [
+	    rustc
+	    cargo
+            cargo-nextest
+            rustup
+            # Add other essential Rust tools as needed
+          ];
         };
-
-        devShell = workspaceShell;
       }
     );
 }
+

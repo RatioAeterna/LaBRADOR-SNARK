@@ -29,7 +29,7 @@ impl Verifier {
             //psi_k: None,
             //omega_k: None,
             b_prime: None,
-            Pi: None,
+            Pi: Some(vec![]),
         }
     }
 
@@ -390,7 +390,7 @@ impl Verifier {
     }
 
 
-    pub fn sample_jl_projection(&mut self) -> &Array2<i128> {
+    pub fn sample_jl_projection(&mut self) -> Array2<i128> {
 
         let between = Uniform::from(-1..=1);
 
@@ -400,15 +400,8 @@ impl Verifier {
 
         for ((i, j), value) in Pi_i.indexed_iter_mut() {
             *value = between.sample(&mut rng);
-            //println!("matrix[{}][{}] = {}", i, j, value);
         }
-        // TODO store pi_i in the verifier's data
-        self.Pi.as_mut().unwrap().push(Pi_i);
-
-        //&(self.Pi.unwrap().last().unwrap())
-        // TODO don't entirely understand the functionality of this line.. but seems to work.
-        let Pi_ref = self.Pi.as_ref().and_then(|pi| pi.last()).unwrap();
-        Pi_ref
+        Pi_i
     }
 
 

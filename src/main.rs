@@ -1,10 +1,3 @@
-pub mod algebraic;
-pub mod util;
-pub mod proofgen;
-pub mod constants;
-pub mod verification;
-pub mod structs;
-
 extern crate nalgebra as na;
 use na::{Matrix, DMatrix};
 use rand::prelude::*;
@@ -15,12 +8,12 @@ use ndarray::{Array2, concatenate};
 use ndarray_linalg::norm;
 use num_traits::One;
 use num_traits::Zero;
-use crate::algebraic::*;
-use crate::util::*;
-use crate::proofgen::*;
-use crate::constants::*;
-use crate::structs::*;
-use crate::verification::*;
+use labrador_snark::algebraic::*;
+use labrador_snark::util::*;
+use labrador_snark::proofgen::*;
+use labrador_snark::constants::*;
+use labrador_snark::structs::*;
+use labrador_snark::verification::*;
 
 /*
     TODO: better organization for testing later.
@@ -28,7 +21,6 @@ use crate::verification::*;
 */
 // TODO also look into using rustfmt with the LSP server, etc.
 
-//#[test]
 fn print_constants() {
     println!("Printing runtime-computed constants:\n");
     println!("STD: {}", *STD);
@@ -42,9 +34,6 @@ fn print_constants() {
     println!("GAMMA_2: {}", *GAMMA_2);
     println!("BETA_PRIME: {}", *BETA_PRIME);
 }
-
-
-
 
 #[test]
 fn util_test() {
@@ -120,6 +109,9 @@ fn util_test() {
     println!("{}", prod_poly);
     */
 }
+
+
+
 
 fn main() {
     println!("Welcome to the LaBRADOR Proof System!");
