@@ -135,6 +135,7 @@ impl<'a> Prover<'a> {
 
         println!("First aggregation step...");
         for k in 1..(upper_bound+1) {
+            println!("k={}, upper_bound: {}", k, upper_bound);
             let psi_k = self.verifier.generate_psi();
             let omega_k = self.verifier.generate_omega();
 
@@ -152,8 +153,10 @@ impl<'a> Prover<'a> {
             let mut a_prime_prime : Array2<R_q> = Array2::zeros((R,R));
 
             for i in 0..R {
-                let phi_i_prime_prime : Vec<R_q> = vec![];
+                let mut phi_i_prime_prime : Vec<R_q> = vec![];
                 for j in 0..R {
+
+                    //println!("{} {}", i, j);
                     let a_prime_ij : &R_q = &st.a_prime_k[0][[i,j]];
                     let a_prime_prime_ij : R_q = multiply_poly_ints(&a_prime_ij, &psi.last().unwrap());
                     a_prime_prime[[i,j]] = a_prime_prime_ij;
@@ -186,7 +189,7 @@ impl<'a> Prover<'a> {
                         rhs = add_poly_vec(&rhs, &res);
                     }
 
-                    let phi_i_prime_prime = add_poly_vec(&lhs, &rhs); 
+                    phi_i_prime_prime = add_poly_vec(&lhs, &rhs); 
                 }
                 phi_prime_prime_k.push(phi_i_prime_prime);
             }
@@ -257,8 +260,8 @@ impl<'a> Prover<'a> {
         println!("Computing u_2...");
         // Compute u_2
         let mut u_2 : Vec<R_q> = vec![R_q::new(vec![]); KAPPA_2 as usize];
-        for i in 1..(R+1) {
-            for j in i..(R+1) {
+        for i in 0..R {
+            for j in i..R {
                 for k in 0..(*T_1 as usize) {
                     // NOTE: the column(0) looks kind of suspect when the whole thing is an Array2
                     // matrix, but it's actually a column vector, so this is just an easy way to
@@ -298,13 +301,13 @@ impl<'a> Prover<'a> {
         // verifier sends random matrices in {-1,0,1}
         let mut projection : Vec<i128> = vec![0 ; 256];
         for i in 0..R {
-            let Pi_i : Array2<i128> = self.verifier.sample_jl_projection();
+            let Pi_i : &Array2<i128> = self.verifier.sample_jl_projection();
             //println!("Got Pi_i for i={}",i);
             let s_i_coeffs : Array2<i128> = vec_to_column_array(&Z_q::lift_inv(&witness_coeff_concat(&self.S.column(i).to_vec())));
             //println!("Got s_i coeffs");
             // NOTE: for reference, this is a 256x(ND) multiplied by an (ND)x1, giving a 256x1
             // which we turn into a vec
-            let product = matmul(&Pi_i, &s_i_coeffs).column(0).to_vec();
+            let product = matmul(Pi_i, &s_i_coeffs).column(0).to_vec();
             //println!("computed product");
             projection = add_vecs(&projection, &product);
         }
@@ -320,7 +323,7 @@ pub fn generate_witness() -> Array2<R_q> {
     // Random Generation of Witness matrix S
     
     // total summed norm:
-    let mut norm_sum: Z_q = Z_q::zero();
+    let mut norm_sum: i128 = 0;
 
     for i in 0..N {
         for j in 0..R {
@@ -328,18 +331,29 @@ pub fn generate_witness() -> Array2<R_q> {
             // TODO fix clone
             S[[i,j]] = s_ij.clone();
             // add norm to norm sum
-            norm_sum += Z_q::from(poly_norm(&s_ij));
+            norm_sum += poly_norm(&s_ij) as i128;
         }
     }
 
     // if too big, scale down:
-    if norm_sum > (i128::pow(BETA_BOUND,2)) {
-        let scale_factor: f32 = (i128::pow(BETA_BOUND, 2) as f32) / (f32::from(norm_sum));
+    while norm_sum > (i128::pow(BETA_BOUND,2)) {
+        println!("norm sum too big! {} {}", norm_sum, BETA_BOUND*BETA_BOUND);
+        let scale_factor: f32 = (i128::pow(BETA_BOUND, 2) as f32) / (norm_sum as f32);
         //println!("scale factor! {}", scale_factor);
         // scale each polynomial in the matrix by scale factor
         for i in 0..N {
             for j in 0..R {
                 S[[i,j]] = scale_polynomial(&S[[i,j]], scale_factor);
+            }
+        }
+        norm_sum = 0;
+        for i in 0..N {
+            for j in 0..R {
+                let mut s_ij = generate_sparse_polynomial(Q, D);
+                // TODO fix clone
+                S[[i,j]] = s_ij.clone();
+                // add norm to norm sum
+                norm_sum += poly_norm(&s_ij) as i128;
             }
         }
     }

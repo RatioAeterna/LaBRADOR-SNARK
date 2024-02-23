@@ -129,7 +129,7 @@ fn main() {
     println!("Generating State");
     let st = State::new(&S);
 
-    let mut verifier = Verifier::new();
+    let mut verifier = Verifier::new(st.b_prime_k.clone());
     let mut prover = Prover::new(&S, &mut verifier);
 
     println!("Generating proof..");

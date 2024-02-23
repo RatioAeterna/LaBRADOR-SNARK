@@ -10,7 +10,7 @@ use std::ops::{AddAssign, Mul};
 use crate::algebraic::*;
 use crate::constants::*;
 
-// generates an element of Z_q[X]/(X^d+1)
+// generates an elemen100 of Z_q[X]/(X^d+1)
 // TODO: more sophisticated / cleaner random polynomial sampling
 pub fn generate_polynomial(q : i128, d : i128) -> R_q {
     let mut rng = rand::thread_rng();
@@ -33,7 +33,7 @@ pub fn generate_sparse_polynomial(q : i128, d : i128) -> R_q {
             coefficient_vec.push(Z_q::zero());
         }
         else {
-            coefficient_vec.push(Z_q::from(rng.gen_range(0..q/1000000)));
+            coefficient_vec.push(Z_q::from(rng.gen_range(0..q/10000000)));
         }
     }
     let mut poly = R_q::new(coefficient_vec);
@@ -63,7 +63,8 @@ pub fn generate_polynomial_picky(q : i128, d : usize, mut coeff_dist : Vec<Z_q>)
     let mut rng = rand::thread_rng();
     let mut coefficient_vec: Vec<Z_q> = Vec::new();
     for degree in 0..d {
-        let random_index : usize = usize::from(coeff_dist.as_slice().choose(&mut rng).unwrap());
+        let random_index = rng.gen_range(0..coeff_dist.len());
+        //let random_index : usize = usize::from(coeff_dist.as_slice().choose(&mut rng).unwrap());
         let coeff = coeff_dist[random_index];
         coeff_dist.remove(random_index);
         let signed : bool = rng.gen();
@@ -427,7 +428,7 @@ where
 
 // compute the dot product between two lists of polynomials
 pub fn polynomial_vec_inner_product(v1: &[R_q], v2: &[R_q]) -> R_q {
-    assert!(v1.len() == v2.len(), "inner product not defined on vectors of unequal length");
+    assert!(v1.len() == v2.len(), "inner product not defined on vectors of unequal length. v1 length: {}, v2 length: {}", v1.len(), v2.len());
     //println!("\n\nNew Inner product!");
     let mut result = R_q::new(vec![]);
     for i in 0..v1.len() {

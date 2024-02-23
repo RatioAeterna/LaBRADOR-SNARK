@@ -1,7 +1,7 @@
 use ndarray::{Array2, Ix2, concatenate};
 use rand::prelude::*;
 use rand::{Rng, SeedableRng};
-use rand::distributions::Uniform;
+use rand::distributions::{Distribution, WeightedIndex, Uniform};
 
 use num_traits::Zero;
 use crate::util::*;
@@ -14,7 +14,7 @@ pub struct Verifier {
     //projection : Option<&'a Array2<R_q>>,
     //psi_k : Option<Vec<Z_q>>,
     //omega_k : Option<&'a Vec<Z_q>>,
-    b_prime : Option<Z_q>,
+    b_prime : Option<Vec<Z_q>>,
 
     // JL projection matrix
     // elements of i128, not Z_q, since it's a bunch of random uniform {-1,0,1}
@@ -23,12 +23,12 @@ pub struct Verifier {
 
 impl Verifier {
 
-    pub fn new() -> Self {
+    pub fn new(b_prime_k: Vec<Z_q>) -> Self {
         Verifier {
             //projection: None,
             //psi_k: None,
             //omega_k: None,
-            b_prime: None,
+            b_prime: Some(b_prime_k),
             Pi: Some(vec![]),
         }
     }
@@ -39,6 +39,7 @@ impl Verifier {
         // Enumeration of the state and transcript, respectively, so we don't include here.
         let upper_bound : usize = (128.0f64 / (Q as f64).log10()).ceil() as usize;
 
+        println!("starting line 3");
         // LINE 3
         // Computing "a_prime_prime" matrices for all k up to upper_bound, storing those in a vector
 
@@ -58,6 +59,7 @@ impl Verifier {
             a_prime_prime.push(a_prime_prime_mat);
         }
 
+        println!("starting line 4");
         // LINE 4
         // Computing "phi_i_prime_prime" vecs for each k (and all i's)
         let mut phi_prime_prime_k : Vec<Vec<Vec<R_q>>> = vec![];
@@ -70,6 +72,10 @@ impl Verifier {
                 for l in 0..L {
                     // TODO yes, we'll make this faster eventually
                     let prod = scale_poly_vec(&st.phi_prime_k[k].column(i).to_vec(), f32::from(proof.psi[k][l]));
+                    if (sum.len() == 0) {
+                        sum = vec![R_q::zero(); prod.len()];
+                    }
+
                     sum = add_poly_vec(&sum, &prod);
                 }
                 for j in 0..256 {
@@ -83,6 +89,7 @@ impl Verifier {
             phi_prime_prime_k.push(phi_prime_prime);
         }
 
+        println!("starting line 5");
         // LINE 5
         // Forming a single canonical matrix of "a_ij" polynomials
         let mut Aij = Array2::from_elem((R,R), R_q::new(vec![])); 
@@ -102,6 +109,7 @@ impl Verifier {
             }
         }
 
+        println!("starting line 6");
         // LINE 6 
         // Forming a single canonical set of vectors "phi_i" for i in {0, ..., R-1}
         let mut phi : Vec<Vec<R_q>> = vec![];
@@ -117,6 +125,7 @@ impl Verifier {
             }
         }
 
+        println!("starting line 7");
         // LINE 7
         // Forming a single canonical "b" polynomial
         let mut b : R_q = R_q::new(vec![]);
@@ -129,6 +138,7 @@ impl Verifier {
             b = b + prod;
         }
         
+        println!("starting line 8");
         // CHECK 8
         // check that g_{ij} == g_{ji} i.e., matrix Gij is symmetric
         // TODO is it faster to only check some values? I really don't think this makes a
@@ -141,6 +151,7 @@ impl Verifier {
             }
         }
 
+        println!("starting line 9");
         // CHECK 9
         // check that h_{ij} == h{ji} i.e., matrix Hij is symmetric
         for i in 0..R {
@@ -381,7 +392,7 @@ impl Verifier {
         let prod = Z_q::from(vec_inner_product(&Z_q::lift_inv(omega_k), projection));
         let mut sum = Z_q::zero();
         for i in 0..L {
-            sum += &psi_k[i] * &(self.b_prime.unwrap());
+            sum += &psi_k[i] * &(self.b_prime.as_ref().unwrap()[i]);
         }
         let check_val = prod + sum;
 
@@ -390,18 +401,24 @@ impl Verifier {
     }
 
 
-    pub fn sample_jl_projection(&mut self) -> Array2<i128> {
-
-        let between = Uniform::from(-1..=1);
-
+    pub fn sample_jl_projection(&mut self) -> &Array2<i128> {
         let mut rng = rand::thread_rng();
+        let choices = [-1,0,1];
+        let weights = [0.25, 0.5, 0.25];
+        let dist = WeightedIndex::new(&weights).unwrap();
+
 
         let mut Pi_i : Array2<i128> = Array2::zeros((256, N*(D as usize)));
 
         for ((i, j), value) in Pi_i.indexed_iter_mut() {
-            *value = between.sample(&mut rng);
+            *value = choices[dist.sample(&mut rng)] as i128;
         }
-        Pi_i
+
+        self.Pi.as_mut().unwrap().push(Pi_i);
+
+        // TODO don't entirely understand the functionality of this line.. but seems to work.
+        let Pi_ref = self.Pi.as_ref().and_then(|pi| pi.last()).unwrap();
+        Pi_ref
     }
 
 

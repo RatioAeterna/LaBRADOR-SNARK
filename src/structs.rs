@@ -131,8 +131,7 @@ pub struct State {
     // Contents of F' (constant term of the solution must be zero):
     pub phi_prime_k : Vec<Array2<R_q>>,
     pub a_prime_k : Vec<Array2<R_q>>,
-    // TODO these should be evaluations at ZERO, i.e., Z_q constant coefficients, not polynomials
-    pub b_prime_k : Vec<R_q>,
+    pub b_prime_k : Vec<Z_q>,
 }
 
 impl State {
@@ -212,7 +211,7 @@ impl State {
 
         let mut phi_prime_k : Vec<Array2<R_q>> = vec![];
         let mut a_prime_k : Vec<Array2<R_q>> = vec![];
-        let mut b_prime_k : Vec<R_q> = vec![];
+        let mut b_prime_k : Vec<Z_q> = vec![];
 
         for k in 0..K {
             let phi : Array2<R_q>;
@@ -230,7 +229,7 @@ impl State {
 
             phi_prime_k.push(phi);
             a_prime_k.push(a);
-            b_prime_k.push(b);
+            b_prime_k.push(b.eval(Z_q::from(0)) );
         }
         for l in 0..L {
             // generate corresponding f' functions.
