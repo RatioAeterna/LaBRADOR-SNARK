@@ -71,6 +71,7 @@ impl Verifier {
                 let mut sum : Vec<R_q> = vec![];
                 for l in 0..L {
                     // TODO yes, we'll make this faster eventually
+                    println!("k: {}, phi_prime_k len: {}, psi len: {}, psi_0 len: {}", k, &st.phi_prime_k.len(), proof.psi.len(), proof.psi[0].len());
                     let prod = scale_poly_vec(&st.phi_prime_k[k].column(i).to_vec(), f32::from(proof.psi[k][l]));
                     if (sum.len() == 0) {
                         sum = vec![R_q::zero(); prod.len()];
@@ -386,7 +387,7 @@ impl Verifier {
     }
 
 
-    pub fn verify_b_prime_prime(&self, b_prime_prime_k : &R_q, omega_k: &Vec<Z_q>, psi_k : &Vec<Z_q>, projection: &Vec<i128>) -> bool {
+    pub fn verify_b_prime_prime(&self, b_prime_prime_k : &R_q, omega_k: &Vec<Z_q>, psi_k : &Vec<Z_q>, projection: &Vec<i128>) -> () {
         // TODO again column vs row not sure.
         // Also self vs no self keyword not sure.
         let prod = Z_q::from(vec_inner_product(&Z_q::lift_inv(omega_k), projection));
@@ -397,7 +398,7 @@ impl Verifier {
         let check_val = prod + sum;
 
         // check that the constant term is equal to the above stuff.
-        b_prime_prime_k.eval(Z_q::zero()) == check_val
+        assert!(b_prime_prime_k.eval(Z_q::zero()) == check_val, "verify_b_prime_prime check failed: b_prime_prime_k constant coefficient is: {}, and check_val is: {}", b_prime_prime_k.eval(Z_q::zero()), check_val);
     }
 
 

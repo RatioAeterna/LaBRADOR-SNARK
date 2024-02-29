@@ -9,7 +9,12 @@ use nalgebra::min;
 use num_traits::Zero;
 use num_traits::One;
 use std::cmp::Ordering;
-//use concrete_ntt::native64::Plan;
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+
+//#[cfg(test)]
+use proptest::prelude::*;
+
+use concrete_ntt::native64::Plan32;
 
 /*
  * Crate for various algebraic structure implementations
@@ -202,9 +207,21 @@ impl From<&Z_q> for usize {
     }
 }
 
+impl From<&Z_q> for u64 {
+    fn from(item: &Z_q) -> Self {
+        item.value as u64
+    }
+}
+
 
 impl From<Z_q> for f32 {
     fn from(item: Z_q) -> Self {
+        item.value as f32
+    }
+}
+
+impl From<&Z_q> for f32 {
+    fn from(item: &Z_q) -> Self {
         item.value as f32
     }
 }
@@ -325,20 +342,13 @@ impl R_q {
         // We need to reduce by (X^d+1)
         // TODO add NTT logic here later.
         
-        /*
-        if(*NTT_ENABLED) {
-            const N: usize = 32;
-            let plan = Plan::try_new(D as usize).unwrap();
-
-            let lhs_data = transform_slice_zq_to_u64((&lhs.0).data());
-            let rhs_data = transform_slice_zq_to_u64((&rhs.0).data());
-            let prod : Vec<u64> = vec![];
-
+        if(NTT_ENABLED.load(AtomicOrdering::SeqCst)) {
+            let mut lhs_data = transform_slice_zq_to_u64((&lhs.0).data());
+            let mut rhs_data = transform_slice_zq_to_u64((&rhs.0).data());
+            let mut prod : Vec<u64> = vec![0; D as usize];
             
-            negacylic_polymul(&prod, &lhs_data, &rhs_data);
+            (*PLAN).negacyclic_polymul(&mut prod, &lhs_data, &rhs_data);
         }
-        */
-
 
 
         let prod : Polynomial<Z_q> = &lhs.0 * &rhs.0;
@@ -347,11 +357,9 @@ impl R_q {
 }
 
 
-/*
 fn transform_slice_zq_to_u64(slice: &[Z_q]) -> Vec<u64> {
-    slice.iter().map(|z| z.to_u128()).collect()
+    slice.iter().map(|z| u64::from(z)).collect()
 }
-*/
 
 
 
@@ -477,3 +485,36 @@ impl fmt::Display for R_q {
         write!(f, "{}", self.0.pretty("x"))
     }
 }
+
+
+
+// Proptest trait implementations...
+//
+//
+
+//#[cfg(test)]
+impl Arbitrary for Z_q {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        any::<i128>().prop_map(|x| Z_q::new(x)).boxed()
+    }
+}
+
+//#[cfg(test)]
+impl Arbitrary for R_q {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        prop::collection::vec(any::<Z_q>(), D as usize) 
+            .prop_map(R_q::new)
+            .boxed()
+    }
+}
+
+
+
+
+

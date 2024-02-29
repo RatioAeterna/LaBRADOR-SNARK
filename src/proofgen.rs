@@ -156,41 +156,32 @@ impl<'a> Prover<'a> {
                 let mut phi_i_prime_prime : Vec<R_q> = vec![];
                 for j in 0..R {
 
-                    //println!("{} {}", i, j);
                     let a_prime_ij : &R_q = &st.a_prime_k[0][[i,j]];
-                    let a_prime_prime_ij : R_q = multiply_poly_ints(&a_prime_ij, &psi.last().unwrap());
+                    let a_prime_prime_ij : R_q = multiply_poly_ints(&a_prime_ij, &psi[k-1]);
                     a_prime_prime[[i,j]] = a_prime_prime_ij;
-
-                    // TODO is the phi_k[0][i] indexing the right way in terms of column vs row? Just
-                    // .col()
-                    // TODO we're taking the k=0 index for now.. disregarding the rest
-                    let phi_prime_i : Vec<R_q> = st.phi_k[0].column(i).to_vec();
-
-
-                    let mut lhs : Vec<R_q> = gen_empty_poly_vec(N);
-                    for l in 1..(L+1) {                                 //NOTE: This is "psi_k"
-                        lhs = add_poly_vec(&multiply_poly_vec_ints(&phi_prime_i , &psi.last().unwrap()), &lhs);
-                    }
-
-                    // side note: consider that pi_i^(j) is the jth row of Pi_i for j = 1, ..., 256.
-                    let Pi_i = self.verifier.get_Pi_i(i);
-
-                    let mut rhs : Vec<R_q> = vec![R_q::new(vec![]); N as usize];
-
-                    for j in 0..256 {
-                        let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Z_q::lift(&Pi_i.row(j).to_vec()));
-                        let conj = sigma_inv_vec(&bolded_pi_poly_vec);
-                        let omega_k_j = omega.last().unwrap()[j];
-
-                        //let res = scale_polynomial(&conj, omega_k_j as f32);
-                        //rhs = rhs + res;
-    
-                        let res = scale_poly_vec(&conj, f32::from(omega_k_j));
-                        rhs = add_poly_vec(&rhs, &res);
-                    }
-
-                    phi_i_prime_prime = add_poly_vec(&lhs, &rhs); 
                 }
+
+                // TODO is the phi_k[0][i] indexing the right way in terms of column vs row? Just
+                // .col()
+                // TODO we're taking the k=0 index for now.. disregarding the rest
+                let phi_prime_i : Vec<R_q> = st.phi_k[0].column(i).to_vec();
+
+                let mut lhs : Vec<R_q> = gen_empty_poly_vec(N);
+                for l in 0..L {                                 //NOTE: This is "psi_k"
+                    lhs = add_poly_vec(&multiply_poly_vec_ints(&phi_prime_i , &psi.last().unwrap()), &lhs);
+                }
+
+                // side note: consider that pi_i^(j) is the jth row of Pi_i for j = 1, ..., 256.
+                let Pi_i = self.verifier.get_Pi_i(i);
+                let mut rhs : Vec<R_q> = vec![R_q::new(vec![]); N as usize];
+                for j in 0..256 {
+                    let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Z_q::lift(&Pi_i.row(j).to_vec()));
+                    let conj = sigma_inv_vec(&bolded_pi_poly_vec);
+                    let omega_k_j = &omega[0][j];
+                    let res = scale_poly_vec(&conj, f32::from(omega_k_j));
+                    rhs = add_poly_vec(&rhs, &res);
+                }
+                phi_i_prime_prime = add_poly_vec(&lhs, &rhs); 
                 phi_prime_prime_k.push(phi_i_prime_prime);
             }
 

@@ -166,6 +166,19 @@ pub fn scale_polynomial(p : &R_q, s : f32) -> R_q {
     return R_q::new(scaled_poly_vec);
 }
 
+pub fn scale_poly_vec_int(vec : &Vec<R_q>, s : &Z_q) -> Vec<R_q> {
+    let mut new_vec = vec![];
+    for i in 0..vec.len() {
+        new_vec.push(scale_polynomial_int(&vec[i], s));
+    }
+    new_vec
+}
+pub fn scale_polynomial_int(p : &R_q, s : &Z_q) -> R_q {
+    let poly_vec : Vec<Z_q> = p.data_vec(); 
+    let scaled_poly_vec : Vec<Z_q> = poly_vec.iter().map(|&x| x * *s).collect();
+    return R_q::new(scaled_poly_vec);
+}
+
 pub fn vec_poly_norm_squared(vec: &Vec<R_q>) -> f64 {
     vec.iter()
         .map(|poly| poly_norm(poly))  // Compute the squared norm of each polynomial
@@ -236,6 +249,16 @@ pub fn vec_inner_product(v1: &Vec<i128>, v2: &Vec<i128>) -> i128 {
         result += product;
     }
     result
+}
+// TODO make these generic
+pub fn vec_inner_product_Z_q(v1: &Vec<Z_q>, v2: &Vec<Z_q>) -> i128 {
+    assert!(v1.len() == v2.len(), "inner product not defined on vectors of unequal length");
+    let mut result : Z_q = Z_q::zero();
+    for i in 0..v1.len() {
+        let product = &v1[i] * &v2[i];
+        result += product;
+    }
+    i128::from(result)
 }
 
 

@@ -1,4 +1,6 @@
 use lazy_static::lazy_static;
+use std::sync::atomic::{AtomicBool, Ordering};
+use concrete_ntt::native64::Plan32;
 
 
 // modulus of the ring of integers
@@ -68,15 +70,9 @@ lazy_static! {
 
     pub static ref BETA_PRIME : f64 = (((2.0/(*B as f64).powi(2)) as f64)*(*GAMMA as f64).powi(2) + (*GAMMA_1 as f64).powi(2) + (*GAMMA_2 as f64).powi(2)).sqrt();
 
-    pub static ref NTT_ENABLED: bool = true;
+    pub static ref PLAN : Plan32 = Plan32::try_new(D as usize).unwrap();
 
-    pub static ref AVX512_ENABLED: bool = false;
 }
 
-
-
-
-
-
-
+pub static NTT_ENABLED: AtomicBool = AtomicBool::new(false);
 
