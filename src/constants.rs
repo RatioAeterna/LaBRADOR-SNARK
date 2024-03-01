@@ -79,7 +79,9 @@ lazy_static! {
 
     pub static ref PLAN : Plan32 = Plan32::try_new(D as usize).unwrap();
 
+
 }
 
 pub static NTT_ENABLED: AtomicBool = AtomicBool::new(false);
 
+pub static MOD_SUSPENSION: AtomicBool = AtomicBool::new(false);

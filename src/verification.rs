@@ -120,10 +120,12 @@ impl Verifier {
             let mut phi_i : Vec<R_q> = vec![]; 
             for k in 0..K {
                 let prod = poly_by_poly_vec(&proof.alpha[k], &st.phi_k[k].column(i).to_vec());
-                phi_i = gen_empty_poly_vec(prod.len());
+                if(phi_i.len() == 0) {
+                    phi_i = gen_empty_poly_vec(prod.len());
+                }
                 phi_i = add_poly_vec(&phi_i, &prod);
             }
-            for k in 1..upper_bound {
+            for k in 0..upper_bound {
                 let prod = poly_by_poly_vec(&proof.beta[k], &phi_prime_prime_k[k][i]);
                 phi_i = add_poly_vec(&phi_i, &prod);
             }
@@ -300,8 +302,9 @@ impl Verifier {
 
         // CHECK 17
         let mut lhs : R_q = R_q::new(vec![]);
+        println!("{} {}", &proof.c.len(), &phi.len());
         for i in 0..R {
-            println!("{} {}", &proof.c.len(), &phi.len());
+            println!("c i: {} phi i: {:?}", &proof.c[i], &phi[i]);
             lhs = lhs + polynomial_vec_inner_product(&phi[i], &proof.z) * &proof.c[i];
         }
         let mut rhs : R_q = R_q::new(vec![]);
@@ -310,8 +313,12 @@ impl Verifier {
                 rhs = rhs + (&proof.Hij[[i,j]] * &proof.c[i] * &proof.c[j]);
             }
         }
-        if (lhs != rhs) { return false;}
 
+        println!("LHS: {}", lhs);
+        println!("RHS: {}", rhs);
+
+
+        if (lhs != rhs) { return false;}
 
         println!("starting line 18");
     
@@ -390,7 +397,7 @@ impl Verifier {
 
     pub fn fetch_beta(&self) -> Vec<R_q> {
         let mut beta = vec![]; 
-        let upper_bound : usize = (128.0f64 / (Q as f64).log10()).ceil() as usize;
+        let upper_bound : usize = std::cmp::min(K, (128.0f64 / (Q as f64).log10()).ceil() as usize);
         for i in 0..upper_bound {
             beta.push(generate_polynomial(Q,D));
         }

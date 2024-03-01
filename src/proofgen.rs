@@ -9,6 +9,7 @@ use crate::constants::*;
 use crate::verification::*;
 use crate::structs::*;
 use num_traits::Zero;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 
 pub struct Prover<'a> {
@@ -54,12 +55,12 @@ impl<'a> Prover<'a> {
         let mut Gij = Array2::from_elem((R,R), R_q::new(vec![])); 
         for i in 0..R {
             for j in 0..R {
-                let col_i = self.S.t().column(i).to_vec();
-                let col_j = self.S.t().column(j).to_vec();
+                let col_i = self.S.column(i).to_vec();
+                let col_j = self.S.column(j).to_vec();
 
                 let res : R_q = polynomial_vec_inner_product(&col_i, &col_j);
                 if Gij[[i,j]] == R_q::new(vec![]) {
-                    Gij[[i,j]] = res;
+                    Gij[[i,j]] = res
                 }
             }
         }
@@ -244,16 +245,27 @@ impl<'a> Prover<'a> {
         let mut Hij = Array2::from_elem((R,R), R_q::new(vec![])); 
         for i in 0..R {
             for j in 0..R {
-                //let s_i = self.S.t().column(i).to_vec();
+                println!("i : {}, j: {}", i, j);
                 let s_i = self.S.column(i).to_vec();
-                //let s_j = self.S.t().column(j).to_vec();
                 let s_j = self.S.column(j).to_vec();
+                println!("s_i: {:?}, s_j: {:?}", s_i, s_j);
 
                 let phi_i = &phi_final[i];
                 let phi_j = &phi_final[j];
+                println!("phi_i: {:?}, phi_j: {:?}", phi_i, phi_j);
+
+                MOD_SUSPENSION.store(true, Ordering::SeqCst);
 
                 let sum = polynomial_vec_inner_product(phi_i, &s_j) + polynomial_vec_inner_product(phi_j, &s_i);
-                let res = scale_polynomial_rational(&sum, &Z_q::from(1), &Z_q::from(2));
+
+                println!("sum: {}", sum);
+
+                let mut res = scale_polynomial_rational(&sum, &Z_q::from(1), &Z_q::from(2));
+
+                MOD_SUSPENSION.store(false, Ordering::SeqCst);
+                res = res.recompute_mod();
+
+                println!("res: {}", res);
 
                 if Hij[[i,j]] == R_q::new(vec![]) {
                     Hij[[i,j]] = res;
@@ -261,6 +273,7 @@ impl<'a> Prover<'a> {
             }
         }
 
+        println!("Printing Hij!");
         for row in Hij.rows() {
             for poly in row {
                 print!("{}, ", poly.eval(Z_q::new(0)));

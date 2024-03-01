@@ -40,7 +40,12 @@ pub struct Z_q {
 
 impl Z_q {
     pub fn new(value: i128) -> Self {
-        Z_q { value : mod_positive(value, Q) }
+        if(MOD_SUSPENSION.load(AtomicOrdering::SeqCst)) {
+            Z_q { value }
+        }
+        else {
+            Z_q { value : mod_positive(value, Q) }
+        }
     }
     pub fn lift(vec : &Vec<i128>) -> Vec<Z_q> {
         let mut res_vec : Vec<Z_q> = vec![];
@@ -298,8 +303,25 @@ pub struct R_q(Polynomial<Z_q>);
 impl R_q {
     // TODO maybe overload so you can pass in refs instead..
     pub fn new(coefficients: Vec<Z_q>) -> Self {
-        R_q::reduction(coefficients)
+        if(MOD_SUSPENSION.load(AtomicOrdering::SeqCst)) {
+            let poly : Polynomial<Z_q> = Polynomial::new(coefficients);
+            R_q(poly)
+        }
+        else {
+            R_q::reduction(coefficients)
+        }
     }
+
+
+    // assumes that moduluses are re-enabled.
+    pub fn recompute_mod(&self) -> Self {
+        let mut datavec = self.data_vec();
+        for i in 0..datavec.len() {
+           datavec[i] = Z_q::new(i128::from(datavec[i]));
+        }
+        R_q::reduction(datavec)
+    }
+
 
     pub fn data_vec(&self) -> Vec<Z_q> {
         self.0.data().to_vec()
