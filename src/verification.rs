@@ -35,9 +35,10 @@ impl Verifier {
 
 
     pub fn verify(&self, st: &State, proof : Transcript, crs : &CRS) -> bool {
+
         // LINE 1, LINE 2
         // Enumeration of the state and transcript, respectively, so we don't include here.
-        let upper_bound : usize = (128.0f64 / (Q as f64).log10()).ceil() as usize;
+        let upper_bound : usize = std::cmp::min(K, (128.0f64 / (Q as f64).log10()).ceil() as usize);
 
         println!("starting line 3");
         // LINE 3
@@ -64,6 +65,7 @@ impl Verifier {
         // Computing "phi_i_prime_prime" vecs for each k (and all i's)
         let mut phi_prime_prime_k : Vec<Vec<Vec<R_q>>> = vec![];
         for k in 0..upper_bound {
+            println!("k={}", k);
             // contains all phi_prime_prime_i for this particular k
             let mut phi_prime_prime : Vec<Vec<R_q>> = vec![];
             for i in 0..R {
@@ -71,8 +73,8 @@ impl Verifier {
                 let mut sum : Vec<R_q> = vec![];
                 for l in 0..L {
                     // TODO yes, we'll make this faster eventually
-                    println!("k: {}, phi_prime_k len: {}, psi len: {}, psi_0 len: {}", k, &st.phi_prime_k.len(), proof.psi.len(), proof.psi[0].len());
-                    let prod = scale_poly_vec(&st.phi_prime_k[k].column(i).to_vec(), f32::from(proof.psi[k][l]));
+                    //println!("k: {}, l: {}, phi_prime_k len: {}, psi len: {}, psi_0 len: {}", k, l, &st.phi_prime_k.len(), proof.psi.len(), proof.psi[0].len());
+                    let prod = scale_poly_vec(&st.phi_prime_k[l].column(i).to_vec(), f32::from(proof.psi[k][l]));
                     if (sum.len() == 0) {
                         sum = vec![R_q::zero(); prod.len()];
                     }
@@ -90,7 +92,7 @@ impl Verifier {
             phi_prime_prime_k.push(phi_prime_prime);
         }
 
-        println!("starting line 5");
+        //println!("starting line 5");
         // LINE 5
         // Forming a single canonical matrix of "a_ij" polynomials
         let mut Aij = Array2::from_elem((R,R), R_q::new(vec![])); 
@@ -118,12 +120,14 @@ impl Verifier {
             let mut phi_i : Vec<R_q> = vec![]; 
             for k in 0..K {
                 let prod = poly_by_poly_vec(&proof.alpha[k], &st.phi_k[k].column(i).to_vec());
+                phi_i = gen_empty_poly_vec(prod.len());
                 phi_i = add_poly_vec(&phi_i, &prod);
             }
             for k in 1..upper_bound {
                 let prod = poly_by_poly_vec(&proof.beta[k], &phi_prime_prime_k[k][i]);
                 phi_i = add_poly_vec(&phi_i, &prod);
             }
+            phi.push(phi_i);
         }
 
         println!("starting line 7");
@@ -158,15 +162,20 @@ impl Verifier {
         for i in 0..R {
             for j in 0..R {
                 if (proof.Hij[[i,j]] != proof.Hij[[j,i]]) {
+                    println!("At i,j: {}", proof.Hij[[i,j]]);
+                    println!("At j,i: {}", proof.Hij[[j,i]]);
                     return false;
                 }
             }
         }
 
+        println!("starting line 10");
 
         // LINE 10
         // Decompose vec z into z = z^(0) + z^(1)b
         let z_decompositions : Vec<Vec<R_q>> = decompose_polynomial_vec(&proof.z, *B, 2);
+
+        println!("starting line 11");
 
         // LINE 11
         // Decompose vec t_i the same way
@@ -176,6 +185,8 @@ impl Verifier {
             t_decompositions.push(t_i_decomposed);
         } 
         
+        println!("starting line 12");
+
         // LINE 12
         // Decompose matrix elements g_ij
         let mut Gij_decompositions = Array2::from_elem((R,R), vec![]); 
@@ -185,6 +196,9 @@ impl Verifier {
                 Gij_decompositions[[i,j]] = dec_gij;
             }
         }
+
+
+        println!("starting line 13");
 
         // LINE 13
         // Decompose matrix elements h_ij
@@ -196,6 +210,8 @@ impl Verifier {
             }
         }
 
+
+        println!("starting line 14");
 
         // LINE 14
         // TODO Yes, we can flatten a number of these loops. Just want to get the protocol down
@@ -226,14 +242,40 @@ impl Verifier {
         if (sum > (*BETA_PRIME).powi(2)) { return false; }
 
 
+        println!("starting line 15");
+
         // CHECK 15
         let mut lhs = polynomial_matrix_product(&crs.A_mat, &vec_to_column_array(&proof.z)).column(0).to_vec();
         let mut rhs : Vec<R_q> = vec![];
         for i in 0..R {
             let prod = poly_by_poly_vec(&proof.c[i], &proof.t_i_all[i]);
-            let rhs = add_poly_vec(&rhs, &prod);
+            if(rhs.len() == 0) {
+                rhs = gen_empty_poly_vec(prod.len());
+            }
+            rhs = add_poly_vec(&rhs, &prod);
         }
+
+
+
+        for i in 0..N {
+            for j in 0..R {
+                println!("A val at i={}, j={}: {}", i, j, &crs.A_mat[[i,j]]);
+            }
+        }
+        println!("z: {:?}", &proof.z);
+        println!("c0 : {}, c1: {}", &proof.c[0], &proof.c[1]);
+        println!("t_i_all 0 : {:?}, t_i_all 1: {:?}", &proof.t_i_all[0], &proof.t_i_all[1]);
+
+        println!("LHS: {:?}", lhs);
+        println!("RHS: {:?}", rhs);
+
+
+
+
         if (lhs != rhs) { return false;}
+
+
+        println!("starting line 16");
 
         // CHECK 16
         let lhs : R_q = polynomial_vec_inner_product(&proof.z, &proof.z);
@@ -242,15 +284,24 @@ impl Verifier {
         for i in 0..R {
             for j in 0..R {
                 rhs = rhs + (&proof.Gij[[i,j]] * &proof.c[i] * &proof.c[j]);
+                println!("rhs in comp: {}", rhs);
             }
         }
+
+        println!("LHS: {}", lhs);
+        println!("RHS: {}", rhs);
+
         if (lhs != rhs) {
             return false;
         }
 
+        println!("starting line 17");
+
+
         // CHECK 17
         let mut lhs : R_q = R_q::new(vec![]);
         for i in 0..R {
+            println!("{} {}", &proof.c.len(), &phi.len());
             lhs = lhs + polynomial_vec_inner_product(&phi[i], &proof.z) * &proof.c[i];
         }
         let mut rhs : R_q = R_q::new(vec![]);
@@ -260,6 +311,9 @@ impl Verifier {
             }
         }
         if (lhs != rhs) { return false;}
+
+
+        println!("starting line 18");
     
         // CHECK 18
         let mut s1 : R_q = R_q::new(vec![]);
@@ -273,6 +327,9 @@ impl Verifier {
         }
         // check to make sure this is the zero polynomial
         if ((s1 + s2 - b) != R_q::new(vec![])) { return false; }
+
+
+        println!("starting line 19");
 
         // CHECK 19
         let mut u_1_candidate : Vec<R_q> = vec![R_q::new(vec![]); KAPPA_1 as usize];
@@ -296,6 +353,8 @@ impl Verifier {
             }
         }
         if (&proof.u_1 != &u_1_candidate) { return false; }
+
+        println!("starting line 20");
 
         // CHECK 20
         let mut u_2_candidate : Vec<R_q> = vec![R_q::new(vec![]); KAPPA_2 as usize];
@@ -344,23 +403,28 @@ impl Verifier {
     pub fn fetch_challenge(&self) -> R_q {
         // particular challenge coefficient distribution described on page 6.
         let mut coeff_dist : Vec<Z_q> = vec![];
-        for i in 0..23 {
-            coeff_dist.push(Z_q::from(0));
+        if(D == 64) {
+            for i in 0..23 {
+                coeff_dist.push(Z_q::from(0));
+            }
+            for i in 0..31 {
+                coeff_dist.push(Z_q::from(1));
+            }
+            for i in 0..10 {
+                coeff_dist.push(Z_q::from(2));
+            }
         }
-        for i in 0..31 {
+        else {
             coeff_dist.push(Z_q::from(1));
-        }
-        for i in 0..10 {
-            coeff_dist.push(Z_q::from(2));
         }
 
         let candidate = generate_polynomial_picky(Q,D as usize, coeff_dist.clone());
         // TODO... I don't think this norm should be squared, as it is.. which would perhaps give you 71^2.. definitely fix this if
         // needed.
-        assert!(poly_norm(&candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
+        //assert!(poly_norm(&candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
     
         while operator_norm(&candidate) > T {
-            assert!(poly_norm(&candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
+            //assert!(poly_norm(&candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
             let candidate = generate_polynomial_picky(Q,D as usize, coeff_dist.clone());
         }
         candidate
@@ -385,6 +449,22 @@ impl Verifier {
         //self.omega_k = Some(&omega_k);
         omega_k 
     }
+
+
+    pub fn fetch_alleged_b_prime_prime_cc(&self, omega_k: &Vec<Z_q>, psi_k: &Vec<Z_q>, projection: &Vec<i128>) -> Z_q {
+
+        let prod = Z_q::from(vec_inner_product(&Z_q::lift_inv(omega_k), projection));
+        let mut sum = Z_q::zero();
+        for i in 0..L {
+            sum += &psi_k[i] * &(self.b_prime.as_ref().unwrap()[i]);
+        }
+        let alleged_b_prime_prime = prod + sum;
+
+
+        alleged_b_prime_prime
+    }
+
+
 
 
     pub fn verify_b_prime_prime(&self, b_prime_prime_k : &R_q, omega_k: &Vec<Z_q>, psi_k : &Vec<Z_q>, projection: &Vec<i128>) -> () {

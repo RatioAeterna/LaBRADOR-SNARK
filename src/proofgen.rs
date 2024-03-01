@@ -117,7 +117,7 @@ impl<'a> Prover<'a> {
 
         // TODO the paper mentions 'log' but it's not AT ALL clear whether this is base 2, 10, e, etc.
         // We will go with 10 for now.
-        let upper_bound : usize = (128.0f64 / (Q as f64).log10()).ceil() as usize;
+        let upper_bound : usize = std::cmp::min(K, (128.0f64 / (Q as f64).log10()).ceil() as usize);
 
 
         let mut psi : Vec<Vec<Z_q>> = vec![];
@@ -200,7 +200,18 @@ impl<'a> Prover<'a> {
                 let res = polynomial_vec_inner_product(&phi_prime_prime_k[i], &self.S.column(i).to_vec());
                 rhs = rhs + res;
             }
-            let b_prime_prime_k = lhs + rhs;
+            let b_prime_prime_k = lhs.clone() + rhs.clone();
+
+            // FIRST, we sanity check to see if this whole new "Aggregation" f''^(k) relation is zero..
+            // TODO debugging, not part of the protocol
+
+            let mut b_prime_prime_0 : Z_q = self.verifier.fetch_alleged_b_prime_prime_cc(&omega.last().unwrap(), &psi.last().unwrap(), &projection);
+            
+            let real_cc = (&lhs + &rhs - R_q::new(vec![b_prime_prime_0])).eval(Z_q::from(0));
+            println!("Real constant coefficient diff: {} ", real_cc);
+
+
+
             self.verifier.verify_b_prime_prime(&b_prime_prime_k, &omega.last().unwrap(), &psi.last().unwrap(), &projection);
 
             phi_prime_prime_vec.push(phi_prime_prime_k);
@@ -233,20 +244,32 @@ impl<'a> Prover<'a> {
         let mut Hij = Array2::from_elem((R,R), R_q::new(vec![])); 
         for i in 0..R {
             for j in 0..R {
-                let s_i = self.S.t().column(i).to_vec();
-                let s_j = self.S.t().column(j).to_vec();
+                //let s_i = self.S.t().column(i).to_vec();
+                let s_i = self.S.column(i).to_vec();
+                //let s_j = self.S.t().column(j).to_vec();
+                let s_j = self.S.column(j).to_vec();
 
                 let phi_i = &phi_final[i];
                 let phi_j = &phi_final[j];
 
                 let sum = polynomial_vec_inner_product(phi_i, &s_j) + polynomial_vec_inner_product(phi_j, &s_i);
-                let res = scale_polynomial(&sum, 0.5);
+                let res = scale_polynomial_rational(&sum, &Z_q::from(1), &Z_q::from(2));
 
                 if Hij[[i,j]] == R_q::new(vec![]) {
                     Hij[[i,j]] = res;
                 }
             }
         }
+
+        for row in Hij.rows() {
+            for poly in row {
+                print!("{}, ", poly.eval(Z_q::new(0)));
+            }
+            println!("\n");
+        }
+
+
+
 
         println!("Computing u_2...");
         // Compute u_2
@@ -281,7 +304,6 @@ impl<'a> Prover<'a> {
                 z[j] = &z[j] + &prod[j];
             }
         }
-
         println!("Filling proof transcript.");
         // TODO fill the proof transcript with all the relevant data and return
         let proof_transcript : Transcript = Transcript { u_1, projection, psi, omega, b_prime_prime : b_prime_prime_vec, alpha, beta, u_2, c : c_vec, z, t_i_all, Gij, Hij };
@@ -318,13 +340,22 @@ pub fn generate_witness() -> Array2<R_q> {
 
     for i in 0..N {
         for j in 0..R {
-            let mut s_ij = generate_sparse_polynomial(Q, D);
+            //let mut s_ij = generate_sparse_polynomial(Q, D);
+            let mut s_ij = generate_polynomial(Q, D);
             // TODO fix clone
             S[[i,j]] = s_ij.clone();
             // add norm to norm sum
             norm_sum += poly_norm(&s_ij) as i128;
         }
     }
+
+    for i in 0..N {
+        for j in 0..R {
+            println!("val at i={}, j={}: {}", i, j, S[[i,j]]);
+        }
+    }
+
+
 
     // if too big, scale down:
     while norm_sum > (i128::pow(BETA_BOUND,2)) {

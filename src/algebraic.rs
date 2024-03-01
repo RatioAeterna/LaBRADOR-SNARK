@@ -155,6 +155,13 @@ impl std::ops::Div<i128> for Z_q {
     }
 }
 
+impl std::ops::Div for Z_q {
+    type Output = Self;
+
+    fn div(self, rhs: Z_q) -> Self::Output {
+        Self::new(self.value / rhs.value)
+    }
+}
 
 impl std::ops::Add for &Z_q {
     type Output = Z_q;

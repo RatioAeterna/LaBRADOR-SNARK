@@ -4,17 +4,24 @@ use concrete_ntt::native64::Plan32;
 
 
 // modulus of the ring of integers
-pub const Q: i128 = 1 << 32; // 2^32, as used in the paper
+//pub const Q: i128 = 1 << 32; // 2^32, as used in the paper
+pub const Q: i128 = 1 << 5; // 2^8, DEBUG
 
 // polynomial degree modulus
-pub const D: i128 = 64; // used in the paper
+//pub const D: i128 = 64; // used in the paper
+pub const D: i128 = 1; // DEBUG
 
 
 // commitment ranks... TODO I have NO idea what these should actually be sized at. It doesn't seem
 // to be described in the paper. Tried 1024, seems to be... a bit large. We'll see.
+/*
 pub const KAPPA : usize = 128;
 pub const KAPPA_1 : usize = 128;
 pub const KAPPA_2 : usize = 128;
+*/
+pub const KAPPA : usize = 2;
+pub const KAPPA_1 : usize = 2;
+pub const KAPPA_2 : usize = 2;
 
 // used for challenge polynomial generation
 pub const TAU : f64 = 71.0;
@@ -33,9 +40,9 @@ pub const L : usize = 1;
 
 // matrix dimensions: totally random for now and should be changed later
 //pub const N : usize = 128; // NUMBER of ROWS of S
-pub const N : usize = 32; // NUMBER of ROWS of S
+pub const N : usize = 2; // NUMBER of ROWS of S
 //pub const R : usize = 20; // Number of COLUMNS of S
-pub const R : usize = 32; // Number of COLUMNS of S
+pub const R : usize = 2; // Number of COLUMNS of S
 
 // setting bound for SIS 2-norm
 pub const BETA_BOUND : i128 = 65536;
