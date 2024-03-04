@@ -245,27 +245,28 @@ impl<'a> Prover<'a> {
         let mut Hij = Array2::from_elem((R,R), R_q::new(vec![])); 
         for i in 0..R {
             for j in 0..R {
-                println!("i : {}, j: {}", i, j);
+                //println!("i : {}, j: {}", i, j);
                 let s_i = self.S.column(i).to_vec();
                 let s_j = self.S.column(j).to_vec();
-                println!("s_i: {:?}, s_j: {:?}", s_i, s_j);
+                //println!("s_i: {:?}, s_j: {:?}", s_i, s_j);
 
                 let phi_i = &phi_final[i];
                 let phi_j = &phi_final[j];
-                println!("phi_i: {:?}, phi_j: {:?}", phi_i, phi_j);
+                //println!("phi_i: {:?}, phi_j: {:?}", phi_i, phi_j);
 
                 MOD_SUSPENSION.store(true, Ordering::SeqCst);
 
                 let sum = polynomial_vec_inner_product(phi_i, &s_j) + polynomial_vec_inner_product(phi_j, &s_i);
 
-                println!("sum: {}", sum);
+                //println!("sum: {}", sum);
 
                 let mut res = scale_polynomial_rational(&sum, &Z_q::from(1), &Z_q::from(2));
+                //println!("sum/2: {}", res);
 
                 MOD_SUSPENSION.store(false, Ordering::SeqCst);
                 res = res.recompute_mod();
 
-                println!("res: {}", res);
+                //println!("res: {}", res);
 
                 if Hij[[i,j]] == R_q::new(vec![]) {
                     Hij[[i,j]] = res;
@@ -273,6 +274,7 @@ impl<'a> Prover<'a> {
             }
         }
 
+        /*
         println!("Printing Hij!");
         for row in Hij.rows() {
             for poly in row {
@@ -280,6 +282,7 @@ impl<'a> Prover<'a> {
             }
             println!("\n");
         }
+        */
 
 
 

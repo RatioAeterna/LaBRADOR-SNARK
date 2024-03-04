@@ -176,9 +176,14 @@ pub fn scale_poly_vec_int(vec : &Vec<R_q>, s : &Z_q) -> Vec<R_q> {
 
 pub fn scale_polynomial_rational(p : &R_q, a : &Z_q, b : &Z_q) -> R_q {
     let poly_vec : Vec<Z_q> = p.data_vec(); 
-    let scaled_poly_vec : Vec<Z_q> = poly_vec.iter().map(|&x| ((x * *a) / *b)).collect();
+    let scaled_poly_vec : Vec<Z_q> = poly_vec.iter().map(|&x| ((x * *a)/ *b)).collect();
     return R_q::new(scaled_poly_vec);
 }
+
+fn divide_and_round(dividend: Z_q, divisor: Z_q) -> Z_q {
+    (dividend + divisor / Z_q::from(2)) / divisor
+}
+
 
 
 pub fn scale_polynomial_int(p : &R_q, s : &Z_q) -> R_q {

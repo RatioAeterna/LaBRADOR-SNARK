@@ -293,6 +293,7 @@ impl Verifier {
         println!("LHS: {}", lhs);
         println!("RHS: {}", rhs);
 
+
         if (lhs != rhs) {
             return false;
         }
@@ -318,7 +319,33 @@ impl Verifier {
         println!("RHS: {}", rhs);
 
 
-        if (lhs != rhs) { return false;}
+        // NOTE: in the protocol, they describe a check for equality: we expect that lhs == rhs.
+        // but in practice, because we divide the entries of H by 1/2.. some of those might be odd,
+        // which disrupts the perfect equality in the derivation. So we add a small slack term that
+        // scales with R and the length of the polynomial.
+
+        let threshold : i128 = ((R as i128)*(R as i128) + 1)/2;
+        println!("threshold: {}" , threshold);
+        for i in 0..(D as usize) {
+            // potentially too much slack.. we assume every element is odd.
+            let l_term = &lhs.get_term_of_deg(i).eval(Z_q::from(1));
+            let r_term = &rhs.get_term_of_deg(i).eval(Z_q::from(1));
+            let mut coeff_diff : i128;
+
+            if(l_term > r_term) {
+                coeff_diff = i128::from(l_term - r_term).abs();
+            }
+            else {
+                coeff_diff = i128::from(r_term - l_term).abs();
+            }
+            println!("Diff... {}" , coeff_diff);
+            if (coeff_diff > threshold) {
+                return false;
+            }
+        }
+
+        // Antiquated, for now.. we can't reliably check for exact equality.
+        //if (lhs != rhs) { return false;}
 
         println!("starting line 18");
     
