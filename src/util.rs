@@ -163,7 +163,7 @@ pub fn multiply_poly_ints(p : &R_q, ints: &Vec<Z_q>) -> R_q {
     let mut p_res : R_q = R_q::new(vec![]);
 
     for coeff in ints {
-        p_res = p_res + scale_polynomial(p, f32::from(*coeff));
+        p_res = p_res + scale_polynomial(p, coeff);
     }
     p_res
 }
@@ -179,8 +179,8 @@ pub fn random_sample_Z_q(n : i128, q: i128) -> Vec<Z_q> {
     sample
 }
 
-// scales a given polynomial by a scale factor (usually < 1)
-pub fn scale_poly_vec(vec : &Vec<R_q>, s : f32) -> Vec<R_q> {
+// scales a given polynomial by a scale factor element of Z_q
+pub fn scale_poly_vec(vec : &Vec<R_q>, s : &Z_q) -> Vec<R_q> {
     let mut new_vec = vec![];
     for i in 0..vec.len() {
         new_vec.push(scale_polynomial(&vec[i], s));
@@ -189,20 +189,11 @@ pub fn scale_poly_vec(vec : &Vec<R_q>, s : f32) -> Vec<R_q> {
 }
 
 
-// scales a given polynomial by a scale factor (usually < 1)
-pub fn scale_polynomial(p : &R_q, s : f32) -> R_q {
-    //let constant_polynomial : R_q<f32> = R_q::new(vec![s]);
+// scales a given polynomial by a scale factor element of Z_q 
+pub fn scale_polynomial(p : &R_q, s : &Z_q) -> R_q {
     let poly_vec : Vec<Z_q> = p.data_vec(); 
-    let scaled_poly_vec : Vec<Z_q> = poly_vec.iter().map(|&x| (Z_q::from(((f32::from(x)) * s).floor()))).collect();
+    let scaled_poly_vec : Vec<Z_q> = poly_vec.iter().map(|&x| x * *s).collect();
     return R_q::new(scaled_poly_vec);
-}
-
-pub fn scale_poly_vec_int(vec : &Vec<R_q>, s : &Z_q) -> Vec<R_q> {
-    let mut new_vec = vec![];
-    for i in 0..vec.len() {
-        new_vec.push(scale_polynomial_int(&vec[i], s));
-    }
-    new_vec
 }
 
 pub fn scale_polynomial_rational(p : &R_q, a : &Z_q, b : &Z_q) -> R_q {
@@ -215,13 +206,6 @@ fn divide_and_round(dividend: Z_q, divisor: Z_q) -> Z_q {
     (dividend + divisor / Z_q::from(2)) / divisor
 }
 
-
-
-pub fn scale_polynomial_int(p : &R_q, s : &Z_q) -> R_q {
-    let poly_vec : Vec<Z_q> = p.data_vec(); 
-    let scaled_poly_vec : Vec<Z_q> = poly_vec.iter().map(|&x| x * *s).collect();
-    return R_q::new(scaled_poly_vec);
-}
 
 pub fn vec_poly_norm_squared(vec: &Vec<R_q>) -> f64 {
     vec.iter()

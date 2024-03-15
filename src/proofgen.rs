@@ -185,7 +185,7 @@ impl<'a> Prover<'a> {
                     //let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Pi_i.row(j).to_vec());
                     let conj = sigma_inv_vec(&bolded_pi_poly_vec);
                     let omega_k_j = &omega[0][j];
-                    let res = scale_poly_vec(&conj, f32::from(omega_k_j));
+                    let res = scale_poly_vec(&conj, omega_k_j);
                     rhs = add_poly_vec(&rhs, &res);
                 }
                 phi_i_prime_prime = add_poly_vec(&lhs, &rhs); 
@@ -213,92 +213,6 @@ impl<'a> Prover<'a> {
             // TODO debugging, not part of the protocol
 
             let mut b_prime_prime_0 : Z_q = self.verifier.fetch_alleged_b_prime_prime_cc(&omega.last().unwrap(), &psi.last().unwrap(), &projection);
-
-
-            // TODO DEBUGGING: Check left side of equation
-            // ===========================================
-            let mut b_prime_prime_test : R_q = R_q::zero();
-            let mut b_prime : R_q = R_q::zero();
-
-            for i in 0..R {
-                for j in 0..R {
-                    let a_prime_ij : &R_q = &st.a_prime_k[0][[i,j]];
-                    let prod = polynomial_vec_inner_product(&self.S.column(i).to_vec(), &self.S.column(j).to_vec());
-                    let res = a_prime_ij * &prod;
-                    b_prime = b_prime + res;
-                }
-                let phi_prime_i : Vec<R_q> = st.phi_k[0].column(i).to_vec();
-                b_prime = b_prime + polynomial_vec_inner_product(&phi_prime_i, &self.S.column(i).to_vec());
-            }
-            println!("b_prime... {}", &b_prime);
-
-            b_prime_prime_test = multiply_poly_ints(&b_prime, &psi_k);
-
-
-            // recompute by multiplying by psi..
-            let mut b_prime_prime_candidate : R_q = R_q::zero();
-            for i in 0..R {
-                for j in 0..R {
-                    let a_prime_ij : &R_q = &st.a_prime_k[0][[i,j]];
-                    let prod = polynomial_vec_inner_product(&self.S.column(i).to_vec(), &self.S.column(j).to_vec());
-                    let res = a_prime_ij * &prod;
-                    let resres = multiply_poly_ints(&res, &psi_k);
-                    b_prime_prime_candidate = b_prime_prime_candidate + res;
-                }
-                let phi_prime_i : Vec<R_q> = st.phi_k[0].column(i).to_vec();
-                let prod2 = polynomial_vec_inner_product(&phi_prime_i, &self.S.column(i).to_vec());
-                b_prime_prime_candidate = b_prime_prime_candidate + multiply_poly_ints(&prod2, &psi_k);
-            }
-            assert!(b_prime_prime_test == b_prime_prime_candidate, "ASSERT FAILED... multiply by psi after: {}, multiply during: {}", b_prime_prime_test, b_prime_prime_candidate);
-
-
-
-
-            // TODO DEBUG: CHECK CONJUGATION AUTOMORPHISM INVARIANT 
-            /*
-            for j in 0..256 {
-                //let mut testres : R_q = R_q::zero();
-                let mut p_j : Z_q = Z_q::from(0);
-                let mut right_side : R_q = R_q::zero();
-
-                for i in 0..R {
-                    // compute left side of invariant..
-                    println!("\n\ni = {}", i);
-                    let Pi_i = self.verifier.get_Pi_i(i);
-                    let s_i_coeffs : Vec<Z_q> = witness_coeff_concat(&self.S.column(i).to_vec());
-                    println!("printing s_i coeffs: {:?}... and here's actual s_i!: {:?}", s_i_coeffs, &self.S.column(i).to_vec());
-                    println!("printing pi_i^(j) coeffs: {:?}...", &Pi_i.row(j).to_vec());
-
-                    p_j = p_j + vec_inner_product_Z_q(&Pi_i.row(j).to_vec(), &s_i_coeffs);
-
-                   
-                    //let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Z_q::lift(&Pi_i.row(j).to_vec()));
-                    let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Pi_i.row(j).to_vec());
-                    let mut conj = sigma_inv_vec(&bolded_pi_poly_vec);
-                    //conj = bolded_pi_poly_vec;
-                    //assert!(bolded_pi_poly_vec == conj, "sigma inv failed! {:?} {:?}", bolded_pi_poly_vec, conj);
-                    //conj = scale_poly_vec_int(&conj, &omega.last().unwrap()[j]);
-
-
-                    let prod = polynomial_vec_inner_product(&conj, &self.S.column(i).to_vec());
-
-                    right_side = right_side + prod;
-                    assert!(right_side.eval(Z_q::from(0)) == p_j, "INVARIANT BROKEN! {} {}", right_side.eval(Z_q::from(0)), &p_j); 
-                }
-                assert!(p_j == projection[j], "super super broken");
-                //assert!(right_side.eval(Z_q::from(0)) == p_j, "INVARIANT BROKEN! {} {}", right_side.eval(Z_q::from(0)), &p_j); 
-            } 
-
-            //let right_side_prod = Z_q::from(vec_inner_product(&Z_q::lift_inv(&omega.last().unwrap()), &projection));
-            //assert!(testres.eval(Z_q::from(0)) == right_side_prod, "not equal! {} {}", testres.eval(Z_q::from(0)), right_side_prod);
-
-            
-
-            let real_cc = (&lhs + &rhs - R_q::new(vec![b_prime_prime_0])).eval(Z_q::from(0));
-            println!("alleged b prime prime 0... {}", b_prime_prime_0);
-            println!("Real constant coefficient diff: {} ", real_cc);
-            */
-
 
 
             self.verifier.verify_b_prime_prime(&b_prime_prime_k, &omega.last().unwrap(), &psi.last().unwrap(), &projection);
@@ -355,7 +269,7 @@ impl<'a> Prover<'a> {
                 let inv : i128 = two.modpow(&(q_bigint.clone() - BigInt::from(2)), &q_bigint).to_i128().unwrap();
 
 
-                let mut res = scale_polynomial_int(&sum, &Z_q::from(inv));
+                let mut res = scale_polynomial(&sum, &Z_q::from(inv));
 
                 //let mut res = scale_polynomial_rational(&sum, &Z_q::from(1), &Z_q::from(2));
                 //println!("sum/2: {}", res);
@@ -370,19 +284,6 @@ impl<'a> Prover<'a> {
                 }
             }
         }
-
-        /*
-        println!("Printing Hij!");
-        for row in Hij.rows() {
-            for poly in row {
-                print!("{}, ", poly.eval(Z_q::new(0)));
-            }
-            println!("\n");
-        }
-        */
-
-
-
 
         println!("Computing u_2...");
         // Compute u_2

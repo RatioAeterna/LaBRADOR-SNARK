@@ -50,7 +50,7 @@ impl Verifier {
                 for j in 0..R {
                     let mut sum : R_q = R_q::new(vec![]);
                     for l in 0..L {
-                        let scaled : R_q = scale_polynomial(&st.a_prime_k[l][[i,j]], f32::from(proof.psi[k][l]));
+                        let scaled : R_q = scale_polynomial(&st.a_prime_k[l][[i,j]], &proof.psi[k][l]);
                         sum = sum + scaled;
                     }
                     a_prime_prime_mat[[i,j]] = sum;
@@ -73,7 +73,7 @@ impl Verifier {
                 for l in 0..L {
                     // TODO yes, we'll make this faster eventually
                     //println!("k: {}, l: {}, phi_prime_k len: {}, psi len: {}, psi_0 len: {}", k, l, &st.phi_prime_k.len(), proof.psi.len(), proof.psi[0].len());
-                    let prod = scale_poly_vec(&st.phi_prime_k[l].column(i).to_vec(), f32::from(proof.psi[k][l]));
+                    let prod = scale_poly_vec(&st.phi_prime_k[l].column(i).to_vec(), &proof.psi[k][l]);
                     if (sum.len() == 0) {
                         sum = vec![R_q::zero(); prod.len()];
                     }
@@ -84,7 +84,7 @@ impl Verifier {
                     let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Z_q::lift(&self.get_Pi_i(i).row(j).to_vec()));
                     //let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&self.get_Pi_i(i).row(j).to_vec());
                     let conj = sigma_inv_vec(&bolded_pi_poly_vec);
-                    let prod = scale_poly_vec(&conj, f32::from(proof.omega[k][j]));
+                    let prod = scale_poly_vec(&conj, &proof.omega[k][j]);
                     sum = add_poly_vec(&sum, &prod);
                 }
                 phi_prime_prime.push(sum);

@@ -16,12 +16,7 @@ use labrador_snark::structs::*;
 use labrador_snark::verification::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/*
-    TODO: better organization for testing later.
-    Right now we just test a bunch of util / misc. functions here haphazardly.
-*/
 // TODO also look into using rustfmt with the LSP server, etc.
-
 fn print_constants() {
     println!("Printing runtime-computed constants:\n");
     println!("Q: {}", *Q);

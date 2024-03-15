@@ -18,11 +18,6 @@ pub const D: i128 = 1; // DEBUG
 pub const KAPPA : usize = 2;
 pub const KAPPA_1 : usize = 2;
 pub const KAPPA_2 : usize = 2;
-/*
-pub const KAPPA : usize = 256;
-pub const KAPPA_1 : usize = 256;
-pub const KAPPA_2 : usize = 256;
-*/
 
 // used for challenge polynomial generation
 pub const TAU : f64 = 71.0;
@@ -44,8 +39,6 @@ pub const N : usize = 2; // NUMBER of ROWS of S
 //pub const N : usize = 2; // NUMBER of ROWS of S
 pub const R : usize = 2; // Number of COLUMNS of S
 //pub const R : usize = 2; // Number of COLUMNS of S
-
-
 
 pub fn find_suitable_prime(start : i128) -> i128 {
     let mut q = start;
@@ -73,8 +66,7 @@ pub fn is_suitable(candidiate_q : i128) -> bool {
 lazy_static! {
 
     // modulus of the ring of integers
-    pub static ref Q: i128 = find_suitable_prime((1<<10)-1);
-    //pub static ref Q: i128 = find_suitable_prime((1<<32)-1);
+    pub static ref Q: i128 = find_suitable_prime((1<<32)-1);
 
     // setting bound for SIS 2-norm
     // See Theorem 5.1 for description of upper bound..
