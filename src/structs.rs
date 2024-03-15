@@ -24,7 +24,14 @@ impl CRS {
     // later.
     pub fn new() -> Self {
         println!("Generating random matrix A");
-        let A_mat = generate_random_matrix(KAPPA, N, Q, D);
+        let A_mat = generate_random_matrix(KAPPA, N, *Q, D);
+        /*
+        for i in 0..KAPPA {
+            for j in 0..N {
+                println!("A val at i={}, j={}: {}", i, j, &A_mat[[i,j]]);
+            }
+        }
+        */
         let mut B_mat : HashMap<(usize, usize), Array2<R_q>> = HashMap::new();
         let mut C_mat : HashMap<(usize, usize, usize), Array2<R_q>> = HashMap::new();
         let mut D_mat : HashMap<(usize, usize, usize), Array2<R_q>> = HashMap::new();
@@ -37,7 +44,7 @@ impl CRS {
         // that, at least for now.
         for i in 0..R {
             for k in 0..(*T_1 as usize) {
-                let B_ik = generate_random_matrix(KAPPA_1, KAPPA, Q, D);
+                let B_ik = generate_random_matrix(KAPPA_1, KAPPA, *Q, D);
                 let index = (i,k);
                 B_mat.insert(index, B_ik);
             }
@@ -48,7 +55,7 @@ impl CRS {
         for i in 0..R {
             for j in i..R {
                 for k in 0..(*T_2 as usize) {
-                    let C_ijk = generate_random_matrix(KAPPA_2, 1, Q, D);
+                    let C_ijk = generate_random_matrix(KAPPA_2, 1, *Q, D);
                     let index = (i,j,k);
                     C_mat.insert(index, C_ijk);
                 }
@@ -60,7 +67,7 @@ impl CRS {
         for i in 0..R {
             for j in i..R {
                 for k in 0..(*T_1 as usize) {
-                    let D_ijk = generate_random_matrix(KAPPA_2, 1, Q, D);
+                    let D_ijk = generate_random_matrix(KAPPA_2, 1, *Q, D);
                     let index = (i,j,k);
                     D_mat.insert(index, D_ijk);
                 }
@@ -74,7 +81,7 @@ pub struct Transcript {
     // fields (see protocol)
     pub u_1 : Vec<R_q>,
     // pub Pi_i : Vec<Array2<Z_q>>, TODO Yes, we want this in here eventually.
-    pub projection : Vec<i128>,
+    pub projection : Vec<Z_q>,
     pub psi : Vec<Vec<Z_q>>, // note: This contains all ceil(128/log(q)) psi_k
     pub omega : Vec<Vec<Z_q>>, // note: This contains all ceil(128/log(q)) omega_k
     pub b_prime_prime: Vec<R_q>,
@@ -141,7 +148,7 @@ impl State {
         let mut Aij = Array2::from_elem((R,R), R_q::new(vec![])); 
         for i in 0..R {
             for j in 0..R {
-                let a_ij = generate_polynomial(Q,D);
+                let a_ij = generate_polynomial(*Q,D);
                 if Aij[[i,j]] == R_q::new(vec![]) {
                     Aij[[i,j]] = a_ij.clone();
                     Aij[[j,i]] = a_ij;
@@ -161,7 +168,7 @@ impl State {
         let mut Phi = Array2::from_elem((N,R), R_q::new(vec![])); 
         for i in 0..R {
             for j in 0..N {
-                let phi_ji = generate_polynomial(Q,D);
+                let phi_ji = generate_polynomial(*Q,D);
                 Phi[[j,i]] = phi_ji;
             }
         }

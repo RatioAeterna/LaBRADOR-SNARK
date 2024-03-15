@@ -5,6 +5,7 @@ use polynomial::Polynomial;
 use rand::prelude::*;
 use rand::{Rng, SeedableRng};
 use crate::constants::*;
+use crate::util::*;
 use nalgebra::min;
 use num_traits::Zero;
 use num_traits::One;
@@ -22,14 +23,6 @@ use concrete_ntt::native64::Plan32;
  *
  */
 
-pub fn mod_positive(dividend: i128, divisor: i128) -> i128 {
-    let remainder = dividend % divisor;
-    if remainder < 0 {
-        remainder + divisor
-    } else {
-        remainder
-    }
-}
 
 
 // The ring of integers modulo q (Q in constants.rs)
@@ -44,7 +37,7 @@ impl Z_q {
             Z_q { value }
         }
         else {
-            Z_q { value : mod_positive(value, Q) }
+            Z_q { value : mod_positive(value, *Q) }
         }
     }
     pub fn lift(vec : &Vec<i128>) -> Vec<Z_q> {
@@ -69,7 +62,7 @@ impl std::ops::Neg for Z_q {
     type Output = Z_q;
     fn neg(self) -> Z_q {
         Z_q {
-            value: if self.value == 0 { 0 } else { Q - self.value },
+            value: if self.value == 0 { 0 } else { *Q - self.value },
         }
     }
 }
@@ -195,13 +188,13 @@ impl std::ops::Mul for &Z_q {
 
 impl std::ops::AddAssign<Z_q> for Z_q {
     fn add_assign(&mut self, other: Z_q) {
-        self.value = mod_positive((self.value + other.value), Q);
+        self.value = mod_positive((self.value + other.value), *Q);
     }
 }
 
 impl std::ops::SubAssign<Z_q> for Z_q {
     fn sub_assign(&mut self, other: Z_q) {
-        self.value = mod_positive((self.value - other.value), Q);
+        self.value = mod_positive((self.value - other.value), *Q);
     }
 }
 
@@ -209,6 +202,7 @@ impl std::ops::SubAssign<Z_q> for Z_q {
 
 impl fmt::Display for Z_q {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        //println!("DISPLAYING (the z_q...) {}", self.value);
         write!(f, "{}", self.value)
     }
 }
@@ -283,13 +277,13 @@ impl PartialEq for Z_q {
 
 impl PartialEq<i128> for Z_q {
     fn eq(&self, other: &i128) -> bool {
-        self.value == mod_positive(*other, Q)
+        self.value == mod_positive(*other, *Q)
     }
 }
 
 impl PartialOrd<i128> for Z_q {
     fn partial_cmp(&self, other: &i128) -> Option<Ordering> {
-        self.value.partial_cmp(&(mod_positive(*other, Q)))
+        self.value.partial_cmp(&(mod_positive(*other, *Q)))
     }
 }
 
@@ -341,21 +335,24 @@ impl R_q {
     }
 
     fn reduction(coefficients: Vec<Z_q>) -> R_q {
-        // REDUCE all terms of deg >= 64
+        // REDUCE all terms of deg >= D
         // form a new polynomial from the "valid" slice of data that we have, i.e., indices 0..D
         let data_len = coefficients.len();
-        let valid_coeffs = coefficients[..min(data_len, 64)].to_vec();
-        let sliced_poly : Polynomial<Z_q> = Polynomial::new(valid_coeffs);
+        let valid_coeffs = coefficients[..min(data_len, D as usize)].to_vec();
+        // TODO fix this cloning
+        let sliced_poly : Polynomial<Z_q> = Polynomial::new(valid_coeffs.clone());
         let mut reduced_rq : R_q = R_q(sliced_poly);
-        if (data_len <= 64) {
+        if (data_len <= (D as usize)) {
+            //println!("valid coeffs... {:?}", valid_coeffs);
+            //println!("reduced r_q... {}", reduced_rq);
             return reduced_rq;
         }
 
         for deg in (D as usize)..data_len {
             let term : Z_q = (&coefficients)[deg].clone();
-            // reduce the degree (which is > 64) by dividing it by 64
-            let factor = (-1i128).pow((deg / 64) as u32); // TODO too big ints?
-            let new_deg = deg % 64;
+            // reduce the degree (which is > D) by dividing it by D
+            let factor = (-1i128).pow((deg / D as usize) as u32); // TODO too big ints?
+            let new_deg = deg % (D as usize);
 
             let mut term_poly_data = vec![Z_q::zero(); new_deg+1];
             term_poly_data[new_deg] = term*factor;
@@ -511,6 +508,7 @@ impl PartialEq for R_q {
 
 impl fmt::Display for R_q {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        //println!("DISPLAYING!! :) {:?}", self.0.data().to_vec());
         write!(f, "{}", self.0.pretty("x"))
     }
 }

@@ -10,6 +10,17 @@ use std::ops::{AddAssign, Mul};
 use crate::algebraic::*;
 use crate::constants::*;
 
+
+pub fn mod_positive(dividend: i128, divisor: i128) -> i128 {
+    let remainder = dividend % divisor;
+    if remainder < 0 {
+        remainder + divisor
+    } else {
+        remainder
+    }
+}
+
+
 // generates an elemen100 of Z_q[X]/(X^d+1)
 // TODO: more sophisticated / cleaner random polynomial sampling
 pub fn generate_polynomial(q : i128, d : i128) -> R_q {
@@ -19,21 +30,41 @@ pub fn generate_polynomial(q : i128, d : i128) -> R_q {
     for degree in 0..d {
         coefficient_vec.push(Z_q::from(rng.gen_range(0..q)));
     }
+    //println!("GENERATING NEW POLYNOMIAL... COEFFICIENT VEC: {:?}", coefficient_vec);
     let mut poly = R_q::new(coefficient_vec);
+    //println!("Actual poly: {}", poly);
     poly
 }
+
+pub fn reduce_polynomial(p : &R_q) -> R_q {
+    let mut rng = rand::thread_rng();
+    let mut coefficient_vec: Vec<Z_q> = p.data_vec();
+    let mut new_coeffs: Vec<Z_q> = vec![];
+    for degree in 0..coefficient_vec.len() {
+        // 75% chance to be zero
+        if rng.gen_bool(0.0) {
+            new_coeffs.push(Z_q::zero());
+        }
+        else {
+            new_coeffs.push(coefficient_vec[degree]/2);
+        }
+    }
+    let mut poly = R_q::new(new_coeffs);
+    poly
+}
+
 
 pub fn generate_sparse_polynomial(q : i128, d : i128) -> R_q {
     let mut rng = rand::thread_rng();
     //let num_terms = rng.gen_range(1, max_degree + 2);
     let mut coefficient_vec: Vec<Z_q> = Vec::new();
     for degree in 0..d {
-        // 90% chance to be zero
-        if rng.gen_bool(0.9) {
+        // 50% chance to be zero
+        if rng.gen_bool(0.5) {
             coefficient_vec.push(Z_q::zero());
         }
         else {
-            coefficient_vec.push(Z_q::from(rng.gen_range(0..q/10000000)));
+            coefficient_vec.push(Z_q::from(rng.gen_range(0..q/100)));
         }
     }
     let mut poly = R_q::new(coefficient_vec);
@@ -98,10 +129,10 @@ pub fn sigma_inv(a : &R_q) -> R_q {
 
     let poly_data_vec : Vec<Z_q> = a.data_vec();
 
-    let mut new_coeff_vec : Vec<Z_q> = vec![Z_q::zero(); 64]; 
+    let mut new_coeff_vec : Vec<Z_q> = vec![Z_q::zero(); D as usize]; 
 
     // terms of degree 0 unchanged
-    // degree 1-64, we simply transform X^n to -X^{64-n}.
+    // degree 1-D, we simply transform X^n to -X^{D-n}.
 
     for deg in 0..poly_data_vec.len() {
         let coeff = poly_data_vec[deg];
@@ -201,13 +232,13 @@ pub fn vec_poly_norm_squared(vec: &Vec<R_q>) -> f64 {
 
 // takes the 2-norm of a given polynomial (squared)
 pub fn poly_norm(p : &R_q) -> f64 {
-    let norm : Z_q = p.data_vec().iter().map(|&x| x*x).sum::<Z_q>();
-    f64::from(norm)
+    let norm : i128 = p.data_vec().iter().map(|&x| i128::from(x)*i128::from(x)).sum::<i128>();
+    norm as f64
 }
 
 // Does NOT square the norm
 pub fn poly_norm_strict(p : &R_q) -> f64 {
-    let strict_norm : f64 = f64::from(p.data_vec().iter().map(|&x| x*x).sum::<Z_q>()).sqrt();
+    let strict_norm : f64 = (p.data_vec().iter().map(|&x| i128::from(x)*i128::from(x)).sum::<i128>() as f64).sqrt();
     strict_norm
 }
 
@@ -215,6 +246,10 @@ pub fn poly_norm_strict(p : &R_q) -> f64 {
 // Does NOT square the norm. Integer vec version
 pub fn l2_norm(vec : &Vec<i128>) -> f64 {
     let sum_of_squares: i128 = vec.iter().map(|&x| x * x).sum();
+    (sum_of_squares as f64).sqrt()
+}
+pub fn l2_norm_Z_q(vec : &Vec<Z_q>) -> f64 {
+    let sum_of_squares: i128 = vec.iter().map(|&x| i128::from(x) * i128::from(x)).sum();
     (sum_of_squares as f64).sqrt()
 }
 
@@ -231,7 +266,7 @@ pub fn operator_norm(c : &R_q) -> f64 {
     let mut sup_estimate : f64 = 0.;
 
     for n in 0..n_samples {
-        let r = generate_polynomial(Q, D);
+        let r = generate_polynomial(*Q, D);
         let norm : f64 = poly_norm_strict(&(c * &r));        
         let ratio : f64 = (norm / poly_norm_strict(&r)); 
         if ratio > sup_estimate {
@@ -264,14 +299,14 @@ pub fn vec_inner_product(v1: &Vec<i128>, v2: &Vec<i128>) -> i128 {
     result
 }
 // TODO make these generic
-pub fn vec_inner_product_Z_q(v1: &Vec<Z_q>, v2: &Vec<Z_q>) -> i128 {
+pub fn vec_inner_product_Z_q(v1: &Vec<Z_q>, v2: &Vec<Z_q>) -> Z_q {
     assert!(v1.len() == v2.len(), "inner product not defined on vectors of unequal length");
     let mut result : Z_q = Z_q::zero();
     for i in 0..v1.len() {
         let product = &v1[i] * &v2[i];
         result += product;
     }
-    i128::from(result)
+    result
 }
 
 
@@ -308,6 +343,17 @@ pub fn add_vecs(v1: &Vec<i128>, v2: &Vec<i128>) -> Vec<i128> {
     v_res
 }
 
+// TODO genericize later
+pub fn add_vecs_Z_q(v1: &Vec<Z_q>, v2: &Vec<Z_q>) -> Vec<Z_q> {
+    assert!(v1.len() == v2.len(), "summation not defined on vectors of unequal length");
+    let mut v_res : Vec<Z_q> = vec![];
+    for i in 0..v1.len() {
+        let new_p = &v1[i] + &v2[i];
+        v_res.push(new_p);
+    }
+    v_res
+}
+
 
 
 /* Rarely, we need to do elementwise addition of a single polynomial to an entire vector of
@@ -330,11 +376,10 @@ pub fn gen_empty_poly_vec(n : usize) -> Vec<R_q> {
     v_res
 }
 
-// used specifically do decompose e.g., the entirety of t_i = t_i^(0) + ... + t_i^(t_1-1)b_1^(t_1-1)
+// used specifically to decompose e.g., the entirety of t_i = t_i^(0) + ... + t_i^(t_1-1)b_1^(t_1-1)
 pub fn decompose_polynomial_vec(vec : &Vec<R_q>, base : i128, exp: i128) -> Vec<Vec<R_q>> {
 
-    // TODO KAPPA is hardcoded here for now. Fix later.
-    let mut res = vec![vec![R_q::new(vec![]); KAPPA as usize]; exp as usize];
+    let mut res = vec![vec![R_q::new(vec![]); vec.len()]; exp as usize];
 
     for i in 0..vec.len() {
         let t_i = &vec[i]; // polynomial we want to decompose
@@ -353,11 +398,11 @@ pub fn decompose_polynomial_vec(vec : &Vec<R_q>, base : i128, exp: i128) -> Vec<
 pub fn centered_rep(mut val : Z_q, b: i128) -> Z_q {
     //println!("centered representative computation! val: {}, b: {}", val, b);
     if val > b / 2 {
-        //val -= Z_q::from(b);
-        //TODO mod here is probably redundant
-        return Z_q::new((b - i128::from(val)) % b);
+        let new_val = Z_q::new((b - i128::from(val)) % b);
+        //println!("val transformed to: {}", new_val);
+        return new_val;
     }
-    //println!("val transformed to: {}", val);
+    //println!("val kept as: {}", val);
     // no negative values are possible since this is Z_q, so we're done..
     val
 }
@@ -365,6 +410,7 @@ pub fn centered_rep(mut val : Z_q, b: i128) -> Z_q {
 
 pub fn decompose_polynomial(p : &R_q, base : i128, exp: i128) -> Vec<R_q> {
 
+    //println!("decomposing polynomial {} with base {} and exponent {}", p, base, exp);
     let poly_data_vec : Vec<Z_q> = p.data_vec();
 
     // this takes the form of, e.g., g_{ij} = g_{ij}^(0) + ... + g_{ij}^{t_2-1}b_2^{t_2-1}
@@ -375,7 +421,8 @@ pub fn decompose_polynomial(p : &R_q, base : i128, exp: i128) -> Vec<R_q> {
 
 
     // has length deg(p)+1. Each element is an exp length vector..
-    let mut decomposed_coeffs : Vec<R_q> = vec![R_q::new(vec![]); poly_data_vec.len()];
+    //let mut decomposed_coeffs : Vec<R_q> = vec![R_q::new(vec![]); poly_data_vec.len()];
+    let mut decomposed_coeffs : Vec<Vec<Z_q>> = vec![vec![]; poly_data_vec.len()];
 
     // we decompose each coefficient a_j of the polynomial (which we can express as a base K 
 
@@ -385,14 +432,15 @@ pub fn decompose_polynomial(p : &R_q, base : i128, exp: i128) -> Vec<R_q> {
         let mut decomposed_coefficient : Vec<Z_q> = vec![]; // coefficients of decomposed
                                                             // coefficient polynomial (soon to be)
         while poly_coeff != 0 {
-            //println!("While loop!");
+            //println!("in while loop! poly coeff... {}", poly_coeff);
+            //println!("passing ({}) into centered_rep..", poly_coeff % base);
             let remainder = centered_rep(poly_coeff % base, base);
             decomposed_coefficient.push(remainder);
             poly_coeff = (poly_coeff - remainder) / base;
             //println!("remainder: {}. Poly coeff is now: {}", remainder, poly_coeff);
         }
         //println!("PHEW! done with that loop. Now decomposed_coefficient: {:?}", decomposed_coefficient);
-        decomposed_coeffs[deg] = (R_q::new(decomposed_coefficient));
+        decomposed_coeffs[deg] = decomposed_coefficient;
     }
     //println!("DONE!");
 
@@ -403,7 +451,14 @@ pub fn decompose_polynomial(p : &R_q, base : i128, exp: i128) -> Vec<R_q> {
         //println!("Decomposed coeffs len: {}", decomposed_coeffs.len());
         for i in 0..decomposed_coeffs.len() {
             //println!("decomposed coeff i: {}, k={}, polynomial: {}", i,k, &decomposed_coeffs[i]);
-            a_j_k = a_j_k + (&decomposed_coeffs[i]).get_term_of_deg(k as usize);
+            //a_j_k = a_j_k + (&decomposed_coeffs[i]).get_term_of_deg(k as usize);
+            let mut new_poly_data_vec = vec![Z_q::zero(); i+1];
+            //println!("size, {}. i {} k {}, size of [0].. {}", &decomposed_coeffs.len(), i,k, &decomposed_coeffs[i].len());
+            if (*(&decomposed_coeffs[i].len()) > (k as usize)) {
+                let term_to_add = &decomposed_coeffs[i][k as usize];
+                new_poly_data_vec[i] = *term_to_add;
+                a_j_k = a_j_k + R_q::new(new_poly_data_vec);
+            }
         }
         decomp_vec[k as usize] = a_j_k;
     }
@@ -496,6 +551,23 @@ pub fn matmul(m1: &Array2<i128>, m2: &Array2<i128>) -> Array2<i128> {
             let v1 = m1.row(i).to_vec();
             let v2 = m2.column(j).to_vec();
             result[[i,j]] = vec_inner_product(&v1, &v2);
+        }
+    }
+    result
+}
+
+pub fn matmul_Z_q(m1: &Array2<Z_q>, m2: &Array2<Z_q>) -> Array2<Z_q> {
+    assert!(m1.shape()[1] == m2.shape()[0], "matrix product not defined on matrices which do not have dimension (m,n) x (n,k), for some m,n,k");
+    //println!("m1 shape: {:?} \n m2 shape: {:?}", m1.shape(), m2.shape());
+    let m = m1.shape()[0];
+    let k = m2.shape()[1];
+
+    let mut result = Array2::from_elem(Ix2(m, k), Z_q::from(0)); 
+    for i in 0..m {
+        for j in 0..k {
+            let v1 = m1.row(i).to_vec();
+            let v2 = m2.column(j).to_vec();
+            result[[i,j]] = vec_inner_product_Z_q(&v1, &v2);
         }
     }
     result

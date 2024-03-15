@@ -10,6 +10,8 @@ use crate::verification::*;
 use crate::structs::*;
 use num_traits::Zero;
 use std::sync::atomic::{AtomicBool, Ordering};
+use num_bigint::BigInt;
+use num_traits::{One, ToPrimitive};
 
 
 pub struct Prover<'a> {
@@ -100,25 +102,28 @@ impl<'a> Prover<'a> {
         // FOR NOW, we assume they are equal rank. But I *think* you zero pad rhs if this isn't the
         // case.
         let u_1 : Vec<R_q> = add_poly_vec(&lhs, &rhs);
+        //println!("IMPORTANT PRINT!!! lhs: {:?}, rhs: {:?}", &lhs, &rhs);
 
         println!("Computing JL projection...");
         // Next, compute JL projection
-        let mut projection = self.jl_project();
+        let mut projection_ints = self.jl_project();
         println!("Computed projection..");
         let mut rejections = 0;
-        while !self.verifier.valid_projection(&projection) {
+        while !self.verifier.valid_projection(&projection_ints) {
             println!("Verifier rejected projection!");
             rejections += 1;
             if(rejections > 2) {panic!("failed JL...");}
-            projection = self.jl_project();
+            projection_ints = self.jl_project();
         }
         println!("JL Projection complete and accepted");
+
+        let mut projection = Z_q::lift(&projection_ints);
 
         // First Aggregation step
 
         // TODO the paper mentions 'log' but it's not AT ALL clear whether this is base 2, 10, e, etc.
         // We will go with 10 for now.
-        let upper_bound : usize = std::cmp::min(K, (128.0f64 / (Q as f64).log10()).ceil() as usize);
+        let upper_bound : usize = std::cmp::min(K, (128.0f64 / (*Q as f64).log2()).ceil() as usize);
 
 
         let mut psi : Vec<Vec<Z_q>> = vec![];
@@ -142,7 +147,7 @@ impl<'a> Prover<'a> {
 
             let mut phi_prime_prime_k : Vec<Vec<R_q>> = vec![];
 
-            psi.push(psi_k);
+            psi.push(psi_k.clone());
             omega.push(omega_k);
 
             // NOTE: for our first basic rudimentary implementation, consider that
@@ -177,6 +182,7 @@ impl<'a> Prover<'a> {
                 let mut rhs : Vec<R_q> = vec![R_q::new(vec![]); N as usize];
                 for j in 0..256 {
                     let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Z_q::lift(&Pi_i.row(j).to_vec()));
+                    //let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Pi_i.row(j).to_vec());
                     let conj = sigma_inv_vec(&bolded_pi_poly_vec);
                     let omega_k_j = &omega[0][j];
                     let res = scale_poly_vec(&conj, f32::from(omega_k_j));
@@ -207,9 +213,91 @@ impl<'a> Prover<'a> {
             // TODO debugging, not part of the protocol
 
             let mut b_prime_prime_0 : Z_q = self.verifier.fetch_alleged_b_prime_prime_cc(&omega.last().unwrap(), &psi.last().unwrap(), &projection);
+
+
+            // TODO DEBUGGING: Check left side of equation
+            // ===========================================
+            let mut b_prime_prime_test : R_q = R_q::zero();
+            let mut b_prime : R_q = R_q::zero();
+
+            for i in 0..R {
+                for j in 0..R {
+                    let a_prime_ij : &R_q = &st.a_prime_k[0][[i,j]];
+                    let prod = polynomial_vec_inner_product(&self.S.column(i).to_vec(), &self.S.column(j).to_vec());
+                    let res = a_prime_ij * &prod;
+                    b_prime = b_prime + res;
+                }
+                let phi_prime_i : Vec<R_q> = st.phi_k[0].column(i).to_vec();
+                b_prime = b_prime + polynomial_vec_inner_product(&phi_prime_i, &self.S.column(i).to_vec());
+            }
+            println!("b_prime... {}", &b_prime);
+
+            b_prime_prime_test = multiply_poly_ints(&b_prime, &psi_k);
+
+
+            // recompute by multiplying by psi..
+            let mut b_prime_prime_candidate : R_q = R_q::zero();
+            for i in 0..R {
+                for j in 0..R {
+                    let a_prime_ij : &R_q = &st.a_prime_k[0][[i,j]];
+                    let prod = polynomial_vec_inner_product(&self.S.column(i).to_vec(), &self.S.column(j).to_vec());
+                    let res = a_prime_ij * &prod;
+                    let resres = multiply_poly_ints(&res, &psi_k);
+                    b_prime_prime_candidate = b_prime_prime_candidate + res;
+                }
+                let phi_prime_i : Vec<R_q> = st.phi_k[0].column(i).to_vec();
+                let prod2 = polynomial_vec_inner_product(&phi_prime_i, &self.S.column(i).to_vec());
+                b_prime_prime_candidate = b_prime_prime_candidate + multiply_poly_ints(&prod2, &psi_k);
+            }
+            assert!(b_prime_prime_test == b_prime_prime_candidate, "ASSERT FAILED... multiply by psi after: {}, multiply during: {}", b_prime_prime_test, b_prime_prime_candidate);
+
+
+
+
+            // TODO DEBUG: CHECK CONJUGATION AUTOMORPHISM INVARIANT 
+            /*
+            for j in 0..256 {
+                //let mut testres : R_q = R_q::zero();
+                let mut p_j : Z_q = Z_q::from(0);
+                let mut right_side : R_q = R_q::zero();
+
+                for i in 0..R {
+                    // compute left side of invariant..
+                    println!("\n\ni = {}", i);
+                    let Pi_i = self.verifier.get_Pi_i(i);
+                    let s_i_coeffs : Vec<Z_q> = witness_coeff_concat(&self.S.column(i).to_vec());
+                    println!("printing s_i coeffs: {:?}... and here's actual s_i!: {:?}", s_i_coeffs, &self.S.column(i).to_vec());
+                    println!("printing pi_i^(j) coeffs: {:?}...", &Pi_i.row(j).to_vec());
+
+                    p_j = p_j + vec_inner_product_Z_q(&Pi_i.row(j).to_vec(), &s_i_coeffs);
+
+                   
+                    //let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Z_q::lift(&Pi_i.row(j).to_vec()));
+                    let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Pi_i.row(j).to_vec());
+                    let mut conj = sigma_inv_vec(&bolded_pi_poly_vec);
+                    //conj = bolded_pi_poly_vec;
+                    //assert!(bolded_pi_poly_vec == conj, "sigma inv failed! {:?} {:?}", bolded_pi_poly_vec, conj);
+                    //conj = scale_poly_vec_int(&conj, &omega.last().unwrap()[j]);
+
+
+                    let prod = polynomial_vec_inner_product(&conj, &self.S.column(i).to_vec());
+
+                    right_side = right_side + prod;
+                    assert!(right_side.eval(Z_q::from(0)) == p_j, "INVARIANT BROKEN! {} {}", right_side.eval(Z_q::from(0)), &p_j); 
+                }
+                assert!(p_j == projection[j], "super super broken");
+                //assert!(right_side.eval(Z_q::from(0)) == p_j, "INVARIANT BROKEN! {} {}", right_side.eval(Z_q::from(0)), &p_j); 
+            } 
+
+            //let right_side_prod = Z_q::from(vec_inner_product(&Z_q::lift_inv(&omega.last().unwrap()), &projection));
+            //assert!(testres.eval(Z_q::from(0)) == right_side_prod, "not equal! {} {}", testres.eval(Z_q::from(0)), right_side_prod);
+
             
+
             let real_cc = (&lhs + &rhs - R_q::new(vec![b_prime_prime_0])).eval(Z_q::from(0));
+            println!("alleged b prime prime 0... {}", b_prime_prime_0);
             println!("Real constant coefficient diff: {} ", real_cc);
+            */
 
 
 
@@ -260,7 +348,16 @@ impl<'a> Prover<'a> {
 
                 //println!("sum: {}", sum);
 
-                let mut res = scale_polynomial_rational(&sum, &Z_q::from(1), &Z_q::from(2));
+                // NOTE here we're computing the 
+                // multiplicative inverse of 2, i.e., "1/2"
+                let two = BigInt::from(2);
+                let q_bigint = BigInt::from(*Q);
+                let inv : i128 = two.modpow(&(q_bigint.clone() - BigInt::from(2)), &q_bigint).to_i128().unwrap();
+
+
+                let mut res = scale_polynomial_int(&sum, &Z_q::from(inv));
+
+                //let mut res = scale_polynomial_rational(&sum, &Z_q::from(1), &Z_q::from(2));
                 //println!("sum/2: {}", res);
 
                 MOD_SUSPENSION.store(false, Ordering::SeqCst);
@@ -308,18 +405,22 @@ impl<'a> Prover<'a> {
             }
         }
 
-        let mut z : Vec<R_q> = vec![R_q::new(vec![]); R as usize];
+        let mut z : Vec<R_q> = vec![R_q::new(vec![]); N as usize];
         let mut c_vec : Vec<R_q> = vec![];
 
         println!("challenge polynomial fetching..");
+        //println!("JUST FOR SANITY, WITNESS SHAPE: {:?}", &self.S.shape()); 
         for i in 0..R {
             let c_i = self.verifier.fetch_challenge();
             c_vec.push(c_i);
             let prod : Vec<R_q> = poly_by_poly_vec(c_vec.last().as_ref().unwrap(), &self.S.column(i).to_vec());
-            for j in 0..R {
+            //println!("WITNESS COL VEC SIZE: {}", &self.S.column(i).to_vec().len()); 
+            //println!("PROD VEC SIZE: {}", &prod.len()); 
+            for j in 0..N {
                 z[j] = &z[j] + &prod[j];
             }
         }
+        //println!("z length.. {}" , &z.len()); 
         println!("Filling proof transcript.");
         // TODO fill the proof transcript with all the relevant data and return
         let proof_transcript : Transcript = Transcript { u_1, projection, psi, omega, b_prime_prime : b_prime_prime_vec, alpha, beta, u_2, c : c_vec, z, t_i_all, Gij, Hij };
@@ -327,12 +428,13 @@ impl<'a> Prover<'a> {
     }
 
     pub fn jl_project(&mut self) -> Vec<i128> {
-        // verifier sends random matrices in {-1,0,1}
+        // verifier sends random matrices in {-1,0,1}... 
         let mut projection : Vec<i128> = vec![0 ; 256];
         for i in 0..R {
             let Pi_i : &Array2<i128> = self.verifier.sample_jl_projection();
             //println!("Got Pi_i for i={}",i);
             let s_i_coeffs : Array2<i128> = vec_to_column_array(&Z_q::lift_inv(&witness_coeff_concat(&self.S.column(i).to_vec())));
+            //let s_i_coeffs : Array2<Z_q> = vec_to_column_array(&witness_coeff_concat(&self.S.column(i).to_vec()));
             //println!("Got s_i coeffs");
             // NOTE: for reference, this is a 256x(ND) multiplied by an (ND)x1, giving a 256x1
             // which we turn into a vec
@@ -348,6 +450,7 @@ impl<'a> Prover<'a> {
 pub fn generate_witness() -> Array2<R_q> {
     
     let mut S = Array2::from_elem(Ix2(N, R), R_q::new(vec![])); 
+    let mut rng = rand::thread_rng();
 
     // Random Generation of Witness matrix S
     
@@ -356,8 +459,7 @@ pub fn generate_witness() -> Array2<R_q> {
 
     for i in 0..N {
         for j in 0..R {
-            //let mut s_ij = generate_sparse_polynomial(Q, D);
-            let mut s_ij = generate_polynomial(Q, D);
+            let mut s_ij = generate_polynomial(*Q, D);
             // TODO fix clone
             S[[i,j]] = s_ij.clone();
             // add norm to norm sum
@@ -365,36 +467,42 @@ pub fn generate_witness() -> Array2<R_q> {
         }
     }
 
+    /*
     for i in 0..N {
         for j in 0..R {
             println!("val at i={}, j={}: {}", i, j, S[[i,j]]);
         }
     }
+    */
 
 
 
     // if too big, scale down:
-    while norm_sum > (i128::pow(BETA_BOUND,2)) {
-        println!("norm sum too big! {} {}", norm_sum, BETA_BOUND*BETA_BOUND);
-        let scale_factor: f32 = (i128::pow(BETA_BOUND, 2) as f32) / (norm_sum as f32);
-        //println!("scale factor! {}", scale_factor);
-        // scale each polynomial in the matrix by scale factor
-        for i in 0..N {
-            for j in 0..R {
-                S[[i,j]] = scale_polynomial(&S[[i,j]], scale_factor);
-            }
-        }
-        norm_sum = 0;
-        for i in 0..N {
-            for j in 0..R {
-                let mut s_ij = generate_sparse_polynomial(Q, D);
-                // TODO fix clone
-                S[[i,j]] = s_ij.clone();
-                // add norm to norm sum
-                norm_sum += poly_norm(&s_ij) as i128;
-            }
-        }
+    while norm_sum > (i128::pow(*BETA_BOUND,2)) {
+        println!("norm sum too big! {} {}", norm_sum, (*BETA_BOUND)*(*BETA_BOUND));
+
+        let i = rng.gen_range(0..N);
+        let j = rng.gen_range(0..R);
+
+        let old_poly_norm = poly_norm(&S[[i,j]]) as i128;
+
+        //println!("i {}, j {},.... {}", i, j, poly_norm(&S[[i,j]]) as i128);
+        //println!("POLY NORM: {}", poly_norm(&S[[i,j]]) as i128);
+        //println!("norm sum: {}", norm_sum);
+        //println!("Old Sij: {}", &S[[i,j]]);
+
+        let mut s_ij = reduce_polynomial(&S[[i,j]]);
+
+        //println!("New Sij: {}", &s_ij);
+        let new_poly_norm = poly_norm(&s_ij) as i128;
+        //println!("norm diff... {}", old_poly_norm - new_poly_norm);
+        //let mut s_ij = R_q::zero();
+
+        S[[i,j]] = s_ij.clone();
+
+        norm_sum -= (old_poly_norm - new_poly_norm);
     }
     //println!("SUPER SNITY CHECK VAL!! {}", S[[0,0]].clone());
+    println!("norm of witness! squared version: {}, sqrt version: {}", norm_sum, (norm_sum as f64).sqrt() as i128);
     S
 }

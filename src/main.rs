@@ -24,6 +24,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 fn print_constants() {
     println!("Printing runtime-computed constants:\n");
+    println!("Q: {}", *Q);
+    println!("BETA: {}", *BETA_BOUND);
     println!("STD: {}", *STD);
     println!("B: {}", *B);
     println!("B_1: {}", *B_1);

@@ -46,24 +46,20 @@ proptest! {
     }
 
 
-
-
-
-
-
-
     #[test]
     fn sigma_inv_invariant(a in prop::collection::vec(any::<Z_q>(), N*(D as usize)),
                            b in prop::collection::vec(any::<Z_q>(), N*(D as usize))) {
-        let inner_prod : i128 = vec_inner_product_Z_q(&a,&b);
+        let inner_prod : Z_q = vec_inner_product_Z_q(&a,&b);
         let poly_vec_a : Vec<R_q> = concat_coeff_reduction(&a);
         let poly_vec_b : Vec<R_q> = concat_coeff_reduction(&b);
         let inv_a = sigma_inv_vec(&poly_vec_a);
 
         let poly_prod : R_q = polynomial_vec_inner_product(&inv_a, &poly_vec_b);
-        let poly_eval_to_int : i128 = i128::from(poly_prod.eval(Z_q::from(0)));
+        //let poly_eval_to_int : i128 = i128::from(poly_prod.eval(Z_q::from(0)));
+        let poly_eval = poly_prod.eval(Z_q::from(0));
 
-        prop_assert!(inner_prod == poly_eval_to_int, "Conjugation Autmorphism invariant failed! Regular inner product {} should equal constant term {}", inner_prod, poly_eval_to_int);
+        //prop_assert!(inner_prod == poly_eval_to_int, "Conjugation Autmorphism invariant failed! Regular inner product {} should equal constant term {}", inner_prod, poly_eval_to_int);
+        prop_assert!(inner_prod == poly_eval, "Conjugation Autmorphism invariant failed! Regular inner product {} should equal constant term {}", inner_prod, poly_eval);
     }
 }
 

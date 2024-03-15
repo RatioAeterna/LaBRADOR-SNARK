@@ -17,7 +17,6 @@ pub struct Verifier {
     b_prime : Option<Vec<Z_q>>,
 
     // JL projection matrix
-    // elements of i128, not Z_q, since it's a bunch of random uniform {-1,0,1}
     Pi : Option<Vec<Array2<i128>>>,
 }
 
@@ -38,7 +37,7 @@ impl Verifier {
 
         // LINE 1, LINE 2
         // Enumeration of the state and transcript, respectively, so we don't include here.
-        let upper_bound : usize = std::cmp::min(K, (128.0f64 / (Q as f64).log10()).ceil() as usize);
+        let upper_bound : usize = std::cmp::min(K, (128.0f64 / (*Q as f64).log2()).ceil() as usize);
 
         println!("starting line 3");
         // LINE 3
@@ -65,7 +64,7 @@ impl Verifier {
         // Computing "phi_i_prime_prime" vecs for each k (and all i's)
         let mut phi_prime_prime_k : Vec<Vec<Vec<R_q>>> = vec![];
         for k in 0..upper_bound {
-            println!("k={}", k);
+            //println!("k={}", k);
             // contains all phi_prime_prime_i for this particular k
             let mut phi_prime_prime : Vec<Vec<R_q>> = vec![];
             for i in 0..R {
@@ -83,6 +82,7 @@ impl Verifier {
                 }
                 for j in 0..256 {
                     let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&Z_q::lift(&self.get_Pi_i(i).row(j).to_vec()));
+                    //let bolded_pi_poly_vec : Vec<R_q> = concat_coeff_reduction(&self.get_Pi_i(i).row(j).to_vec());
                     let conj = sigma_inv_vec(&bolded_pi_poly_vec);
                     let prod = scale_poly_vec(&conj, f32::from(proof.omega[k][j]));
                     sum = add_poly_vec(&sum, &prod);
@@ -164,8 +164,8 @@ impl Verifier {
         for i in 0..R {
             for j in 0..R {
                 if (proof.Hij[[i,j]] != proof.Hij[[j,i]]) {
-                    println!("At i,j: {}", proof.Hij[[i,j]]);
-                    println!("At j,i: {}", proof.Hij[[j,i]]);
+                    //println!("At i,j: {}", proof.Hij[[i,j]]);
+                    //println!("At j,i: {}", proof.Hij[[j,i]]);
                     return false;
                 }
             }
@@ -194,8 +194,10 @@ impl Verifier {
         let mut Gij_decompositions = Array2::from_elem((R,R), vec![]); 
         for i in 0..R {
             for j in 0..R {
+                //println!("Gij term at [i={},j={}]... {}", i,j,&proof.Gij[[i,j]]);
                 let dec_gij: Vec<R_q> = decompose_polynomial(&proof.Gij[[i,j]], *B_2, *T_2);
                 Gij_decompositions[[i,j]] = dec_gij;
+                //println!("decomposition.... {:?}", Gij_decompositions[[i,j]]);
             }
         }
 
@@ -229,8 +231,10 @@ impl Verifier {
         }
         for i in 0..R {
             for j in 0..R {
+                //println!("Gij term at [i={},j={}]... {}", i,j,&proof.Gij[[i,j]]);
                 for k in 0..(*T_2 as usize) {
                     sum += poly_norm(&Gij_decompositions[[i,j]][k]); 
+                    //println!("Gij decomposition at k={}, is: {}", k,&Gij_decompositions[[i,j]][k]);
                 }
             }
         }
@@ -241,6 +245,8 @@ impl Verifier {
                 }
             }
         }
+        println!("sum: {}, should be less than... {}", sum, (*BETA_PRIME).powi(2));
+
         if (sum > (*BETA_PRIME).powi(2)) { return false; }
 
 
@@ -258,9 +264,10 @@ impl Verifier {
         }
 
 
+        /*
 
-        for i in 0..N {
-            for j in 0..R {
+        for i in 0..KAPPA {
+            for j in 0..N {
                 println!("A val at i={}, j={}: {}", i, j, &crs.A_mat[[i,j]]);
             }
         }
@@ -271,6 +278,7 @@ impl Verifier {
         println!("LHS: {:?}", lhs);
         println!("RHS: {:?}", rhs);
 
+        */
 
 
 
@@ -286,12 +294,14 @@ impl Verifier {
         for i in 0..R {
             for j in 0..R {
                 rhs = rhs + (&proof.Gij[[i,j]] * &proof.c[i] * &proof.c[j]);
-                println!("rhs in comp: {}", rhs);
+                //println!("rhs in comp: {}", rhs);
             }
         }
 
+        /*
         println!("LHS: {}", lhs);
         println!("RHS: {}", rhs);
+        */
 
 
         if (lhs != rhs) {
@@ -305,7 +315,7 @@ impl Verifier {
         let mut lhs : R_q = R_q::new(vec![]);
         println!("{} {}", &proof.c.len(), &phi.len());
         for i in 0..R {
-            println!("c i: {} phi i: {:?}", &proof.c[i], &phi[i]);
+            //println!("c i: {} phi i: {:?}", &proof.c[i], &phi[i]);
             lhs = lhs + polynomial_vec_inner_product(&phi[i], &proof.z) * &proof.c[i];
         }
         let mut rhs : R_q = R_q::new(vec![]);
@@ -315,8 +325,10 @@ impl Verifier {
             }
         }
 
+        /*
         println!("LHS: {}", lhs);
         println!("RHS: {}", rhs);
+        */
 
 
         // NOTE: in the protocol, they describe a check for equality: we expect that lhs == rhs.
@@ -325,7 +337,7 @@ impl Verifier {
         // scales with R and the length of the polynomial.
 
         let threshold : i128 = ((R as i128)*(R as i128) + 1)/2;
-        println!("threshold: {}" , threshold);
+        //println!("threshold: {}" , threshold);
         for i in 0..(D as usize) {
             // potentially too much slack.. we assume every element is odd.
             let l_term = &lhs.get_term_of_deg(i).eval(Z_q::from(1));
@@ -338,7 +350,7 @@ impl Verifier {
             else {
                 coeff_diff = i128::from(r_term - l_term).abs();
             }
-            println!("Diff... {}" , coeff_diff);
+            //println!("Diff... {}" , coeff_diff);
             if (coeff_diff > threshold) {
                 return false;
             }
@@ -366,26 +378,32 @@ impl Verifier {
         println!("starting line 19");
 
         // CHECK 19
-        let mut u_1_candidate : Vec<R_q> = vec![R_q::new(vec![]); KAPPA_1 as usize];
+        //let mut u_1_candidate : Vec<R_q> = vec![R_q::new(vec![]); KAPPA_1 as usize];
+        let mut lhs = gen_empty_poly_vec(KAPPA_1 as usize);
         for i in 0..R {
             for k in 0..(*T_1 as usize) {
                 let B_ik = crs.B_mat.get(&(i,k)).unwrap();
-                let col_mat = vec_to_column_array(&proof.t_i_all[i]);
+                let col_mat = vec_to_column_array(&t_decompositions[i][k]);
                 let prod = polynomial_matrix_product(&B_ik, &col_mat).column(0).to_vec();
-                u_1_candidate = add_poly_vec(&u_1_candidate, &prod);
+                lhs = add_poly_vec(&prod, &lhs);
             }
         }
 
+        let mut rhs = gen_empty_poly_vec(KAPPA_2 as usize);
         for i in 0..R {
             for j in i..R {
                 for k in 0..(*T_2 as usize) {
                     let C_ijk = crs.C_mat.get(&(i,j,k)).unwrap().column(0).to_vec();
                     let poly = &Gij_decompositions[[i,j]][k];
                     let prod = poly_by_poly_vec(poly, &C_ijk);
-                    u_1_candidate = add_poly_vec(&u_1_candidate, &prod);
+                    rhs = add_poly_vec(&prod, &rhs);
                 }
             }
         }
+        let u_1_candidate : Vec<R_q> = add_poly_vec(&lhs, &rhs);
+
+        //println!("PROOF u1: {:?}, COMPUTED u1... {:?}", &proof.u_1, &u_1_candidate);
+        //println!("lhs: {:?}, rhs: {:?}", &lhs, &rhs);
         if (&proof.u_1 != &u_1_candidate) { return false; }
 
         println!("starting line 20");
@@ -417,16 +435,16 @@ impl Verifier {
     pub fn fetch_alpha(&self) -> Vec<R_q> {
         let mut alpha = vec![]; 
         for i in 0..K {
-            alpha.push(generate_polynomial(Q,D));
+            alpha.push(generate_polynomial(*Q,D));
         }
         alpha
     }
 
     pub fn fetch_beta(&self) -> Vec<R_q> {
         let mut beta = vec![]; 
-        let upper_bound : usize = std::cmp::min(K, (128.0f64 / (Q as f64).log10()).ceil() as usize);
+        let upper_bound : usize = std::cmp::min(K, (128.0f64 / (*Q as f64).log2()).ceil() as usize);
         for i in 0..upper_bound {
-            beta.push(generate_polynomial(Q,D));
+            beta.push(generate_polynomial(*Q,D));
         }
         beta
     }
@@ -449,17 +467,19 @@ impl Verifier {
             }
         }
         else {
-            coeff_dist.push(Z_q::from(1));
+            //coeff_dist.push(Z_q::from(1));
+            coeff_dist.push(Z_q::from(0));
+            //coeff_dist.push(Z_q::from(0));
         }
 
-        let candidate = generate_polynomial_picky(Q,D as usize, coeff_dist.clone());
+        let candidate = generate_polynomial_picky(*Q,D as usize, coeff_dist.clone());
         // TODO... I don't think this norm should be squared, as it is.. which would perhaps give you 71^2.. definitely fix this if
         // needed.
         //assert!(poly_norm(&candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
     
         while operator_norm(&candidate) > T {
             //assert!(poly_norm(&candidate) == TAU, "Incorrect l2 norm of challenge polynomial");
-            let candidate = generate_polynomial_picky(Q,D as usize, coeff_dist.clone());
+            let candidate = generate_polynomial_picky(*Q,D as usize, coeff_dist.clone());
         }
         candidate
     }
@@ -468,7 +488,10 @@ impl Verifier {
         let mut rng = rand::thread_rng();
         let mut psi_k: Vec<Z_q> = Vec::new();
         for i in 0..L {
-            psi_k.push(Z_q::from(rng.gen_range(0..Q)));
+            psi_k.push(Z_q::from(rng.gen_range(0..*Q)));
+            println!("PSI K: {:?}", &psi_k);
+            // TODO for debug purposes
+            //psi_k.push(Z_q::from(2));
         }
         psi_k
     }
@@ -478,16 +501,19 @@ impl Verifier {
         let mut rng = rand::thread_rng();
         let mut omega_k: Vec<Z_q> = Vec::new();
         for i in 0..256 {
-            omega_k.push(Z_q::from(rng.gen_range(0..Q)));
+            //omega_k.push(Z_q::from(rng.gen_range(0..*Q)));
+            // TODO for debug purposes
+            omega_k.push(Z_q::from(0));
         }
         //self.omega_k = Some(&omega_k);
         omega_k 
     }
 
 
-    pub fn fetch_alleged_b_prime_prime_cc(&self, omega_k: &Vec<Z_q>, psi_k: &Vec<Z_q>, projection: &Vec<i128>) -> Z_q {
+    pub fn fetch_alleged_b_prime_prime_cc(&self, omega_k: &Vec<Z_q>, psi_k: &Vec<Z_q>, projection: &Vec<Z_q>) -> Z_q {
 
-        let prod = Z_q::from(vec_inner_product(&Z_q::lift_inv(omega_k), projection));
+        //let prod = Z_q::from(vec_inner_product(&Z_q::lift_inv(omega_k), projection));
+        let prod = Z_q::from(vec_inner_product_Z_q(omega_k, projection));
         let mut sum = Z_q::zero();
         for i in 0..L {
             sum += &psi_k[i] * &(self.b_prime.as_ref().unwrap()[i]);
@@ -501,10 +527,11 @@ impl Verifier {
 
 
 
-    pub fn verify_b_prime_prime(&self, b_prime_prime_k : &R_q, omega_k: &Vec<Z_q>, psi_k : &Vec<Z_q>, projection: &Vec<i128>) -> () {
+    pub fn verify_b_prime_prime(&self, b_prime_prime_k : &R_q, omega_k: &Vec<Z_q>, psi_k : &Vec<Z_q>, projection: &Vec<Z_q>) -> () {
         // TODO again column vs row not sure.
         // Also self vs no self keyword not sure.
-        let prod = Z_q::from(vec_inner_product(&Z_q::lift_inv(omega_k), projection));
+        //let prod = Z_q::from(vec_inner_product(&Z_q::lift_inv(omega_k), projection));
+        let prod = Z_q::from(vec_inner_product_Z_q(omega_k, projection));
         let mut sum = Z_q::zero();
         for i in 0..L {
             sum += &psi_k[i] * &(self.b_prime.as_ref().unwrap()[i]);
@@ -540,8 +567,8 @@ impl Verifier {
     pub fn valid_projection(&mut self, projection: &Vec<i128>) -> bool {
         let val : f64 = 128.;
         let norm = l2_norm(projection);
-        println!("TOTAL NORM OF JL PROJECTION: {}, {}", norm, val.sqrt()*(BETA_BOUND as f64));
-        return norm <= val.sqrt()*(BETA_BOUND as f64);
+        println!("TOTAL NORM OF JL PROJECTION: {}, {}", norm, val.sqrt()*(*BETA_BOUND as f64));
+        return norm <= val.sqrt()*(*BETA_BOUND as f64);
     }
 
 }
