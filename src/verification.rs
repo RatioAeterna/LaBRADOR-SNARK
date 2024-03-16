@@ -234,7 +234,7 @@ impl Verifier {
                 //println!("Gij term at [i={},j={}]... {}", i,j,&proof.Gij[[i,j]]);
                 for k in 0..(*T_2 as usize) {
                     sum += poly_norm(&Gij_decompositions[[i,j]][k]); 
-                    //println!("Gij decomposition at k={}, is: {}", k,&Gij_decompositions[[i,j]][k]);
+                    println!("Gij decomposition at k={}, is: {}", k,&Gij_decompositions[[i,j]][k]);
                 }
             }
         }
@@ -488,10 +488,10 @@ impl Verifier {
         let mut rng = rand::thread_rng();
         let mut psi_k: Vec<Z_q> = Vec::new();
         for i in 0..L {
-            psi_k.push(Z_q::from(rng.gen_range(0..*Q)));
-            println!("PSI K: {:?}", &psi_k);
+            //psi_k.push(Z_q::from(rng.gen_range(0..*Q)));
+            //println!("PSI K: {:?}", &psi_k);
             // TODO for debug purposes
-            //psi_k.push(Z_q::from(2));
+            psi_k.push(Z_q::from(0));
         }
         psi_k
     }
@@ -501,9 +501,9 @@ impl Verifier {
         let mut rng = rand::thread_rng();
         let mut omega_k: Vec<Z_q> = Vec::new();
         for i in 0..256 {
-            //omega_k.push(Z_q::from(rng.gen_range(0..*Q)));
+            omega_k.push(Z_q::from(rng.gen_range(0..*Q)));
             // TODO for debug purposes
-            omega_k.push(Z_q::from(0));
+            //omega_k.push(Z_q::from(0));
         }
         //self.omega_k = Some(&omega_k);
         omega_k 

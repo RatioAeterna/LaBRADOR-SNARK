@@ -267,12 +267,7 @@ impl<'a> Prover<'a> {
                 let two = BigInt::from(2);
                 let q_bigint = BigInt::from(*Q);
                 let inv : i128 = two.modpow(&(q_bigint.clone() - BigInt::from(2)), &q_bigint).to_i128().unwrap();
-
-
                 let mut res = scale_polynomial(&sum, &Z_q::from(inv));
-
-                //let mut res = scale_polynomial_rational(&sum, &Z_q::from(1), &Z_q::from(2));
-                //println!("sum/2: {}", res);
 
                 MOD_SUSPENSION.store(false, Ordering::SeqCst);
                 res = res.recompute_mod();

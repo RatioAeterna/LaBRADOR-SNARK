@@ -11,6 +11,8 @@ use num_traits::Zero;
 use num_traits::One;
 use std::cmp::Ordering;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 //#[cfg(test)]
 use proptest::prelude::*;
@@ -157,6 +159,13 @@ impl std::ops::Div for Z_q {
     type Output = Self;
 
     fn div(self, rhs: Z_q) -> Self::Output {
+        /*
+        let rhs_val_bigint = BigInt::from(rhs.value);
+        let q_bigint = BigInt::from(*Q);
+        let rhs_inv : i128 = rhs_val_bigint.modpow(&(q_bigint.clone() - rhs_val_bigint.clone()), &q_bigint).to_i128().unwrap();
+        let div_val = self.value * rhs_inv;
+        Self::new(div_val)
+        */
         Self::new(self.value / rhs.value)
     }
 }

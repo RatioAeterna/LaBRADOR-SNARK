@@ -9,15 +9,15 @@ use num_prime::nt_funcs::{is_prime};
 
 // polynomial degree modulus
 //pub const D: i128 = 64; // used in the paper
-pub const D: i128 = 1; // DEBUG
+pub const D: i128 = 64; // DEBUG
 
 
 // commitment ranks... 
 // TODO resize based on application of core-svp methodology corresponding to adequate security
 // parameter
-pub const KAPPA : usize = 2;
-pub const KAPPA_1 : usize = 2;
-pub const KAPPA_2 : usize = 2;
+pub const KAPPA : usize = 256;
+pub const KAPPA_1 : usize = 256;
+pub const KAPPA_2 : usize = 256;
 
 // used for challenge polynomial generation
 pub const TAU : f64 = 71.0;
@@ -66,7 +66,7 @@ pub fn is_suitable(candidiate_q : i128) -> bool {
 lazy_static! {
 
     // modulus of the ring of integers
-    pub static ref Q: i128 = find_suitable_prime((1<<32)-1);
+    pub static ref Q: i128 = find_suitable_prime((1<<13)-1);
 
     // setting bound for SIS 2-norm
     // See Theorem 5.1 for description of upper bound..
