@@ -60,8 +60,14 @@ fn main() {
     println!("Generated proof!");
 
     println!("Verifying proof..");
-    let res : bool = verifier.verify(&st, proof_transcript, &crs);
+    let res : bool = verifier.verify(&st, &proof_transcript, &crs);
     assert!( res, "Error: Proof Verification Failed");
     println!("Success: Proof Verified!");
+    println!("=========================");
+    println!("Size of proof: {} KB", (proof_transcript.size_in_bytes() as f64)/ 1024.0);
+
+
+
+
 }
 

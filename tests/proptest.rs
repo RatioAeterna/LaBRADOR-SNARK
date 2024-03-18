@@ -16,9 +16,9 @@ proptest! {
     }
 
     #[test]
-    fn test_linearity_of_poly_vec_inner_product(a in prop::collection::vec(any::<R_q>(), N as usize),
-                                                b in prop::collection::vec(any::<R_q>(), N as usize),
-                                                c in any::<Z_q>()) {
+    fn test_linearity_of_poly_vec_inner_product(a in prop::collection::vec(any::<Rq>(), N as usize),
+                                                b in prop::collection::vec(any::<Rq>(), N as usize),
+                                                c in any::<Zq>()) {
         NTT_ENABLED.store(false, Ordering::SeqCst);
         let product_ab = polynomial_vec_inner_product(&a, &b);
         println!("product ab! {}", product_ab);
@@ -31,9 +31,9 @@ proptest! {
 
 
     #[test]
-    fn test_linearity_ntt_enabled(a in prop::collection::vec(any::<R_q>(), N as usize),
-                                                b in prop::collection::vec(any::<R_q>(), N as usize),
-                                                c in any::<Z_q>()) {
+    fn test_linearity_ntt_enabled(a in prop::collection::vec(any::<Rq>(), N as usize),
+                                                b in prop::collection::vec(any::<Rq>(), N as usize),
+                                                c in any::<Zq>()) {
         
         NTT_ENABLED.store(true, Ordering::SeqCst);
         let product_ab = polynomial_vec_inner_product(&a, &b);
@@ -47,16 +47,16 @@ proptest! {
 
 
     #[test]
-    fn sigma_inv_invariant(a in prop::collection::vec(any::<Z_q>(), N*(D as usize)),
-                           b in prop::collection::vec(any::<Z_q>(), N*(D as usize))) {
-        let inner_prod : Z_q = vec_inner_product_Z_q(&a,&b);
-        let poly_vec_a : Vec<R_q> = concat_coeff_reduction(&a);
-        let poly_vec_b : Vec<R_q> = concat_coeff_reduction(&b);
+    fn sigma_inv_invariant(a in prop::collection::vec(any::<Zq>(), N*(D as usize)),
+                           b in prop::collection::vec(any::<Zq>(), N*(D as usize))) {
+        let inner_prod : Zq = vec_inner_product_Zq(&a,&b);
+        let poly_vec_a : Vec<Rq> = concat_coeff_reduction(&a);
+        let poly_vec_b : Vec<Rq> = concat_coeff_reduction(&b);
         let inv_a = sigma_inv_vec(&poly_vec_a);
 
-        let poly_prod : R_q = polynomial_vec_inner_product(&inv_a, &poly_vec_b);
-        //let poly_eval_to_int : i128 = i128::from(poly_prod.eval(Z_q::from(0)));
-        let poly_eval = poly_prod.eval(Z_q::from(0));
+        let poly_prod : Rq = polynomial_vec_inner_product(&inv_a, &poly_vec_b);
+        //let poly_eval_to_int : i128 = i128::from(poly_prod.eval(Zq::from(0)));
+        let poly_eval = poly_prod.eval(Zq::from(0));
 
         //prop_assert!(inner_prod == poly_eval_to_int, "Conjugation Autmorphism invariant failed! Regular inner product {} should equal constant term {}", inner_prod, poly_eval_to_int);
         prop_assert!(inner_prod == poly_eval, "Conjugation Autmorphism invariant failed! Regular inner product {} should equal constant term {}", inner_prod, poly_eval);
@@ -70,25 +70,25 @@ proptest! {
 #[test]
 fn util_test() {
     // test polynomial generation
-    let bigval : Z_q = Z_q::new(4294967295);
-    let one : Z_q = Z_q::one();
-    let minusone : Z_q = Z_q::from(-1);
+    let bigval : Zq = Zq::new(4294967295);
+    let one : Zq = Zq::one();
+    let minusone : Zq = Zq::from(-1);
     println!("bigval: {}", bigval);
     println!("sum with one: {}", bigval + one);
-    println!("-1 in Z_q: {}", minusone);
-    println!("product by two: {}", bigval*Z_q::from(2));
+    println!("-1 in Zq: {}", minusone);
+    println!("product by two: {}", bigval*Zq::from(2));
 
 
 
-    let mut data : Vec<Z_q> = vec![Z_q::zero(); 81];
-    let mut data2 : Vec<Z_q> = vec![Z_q::zero(); 81];
-    data[80] = Z_q::from(4294967295 as i128);
-    data2[1] = Z_q::from(2);
+    let mut data : Vec<Zq> = vec![Zq::zero(); 81];
+    let mut data2 : Vec<Zq> = vec![Zq::zero(); 81];
+    data[80] = Zq::from(4294967295 as i128);
+    data2[1] = Zq::from(2);
 
     println!("Creating big poly 1!");
-    let too_big_poly = R_q::new(data);
+    let too_big_poly = Rq::new(data);
     println!("Creating big poly 2!");
-    let too_big_poly2 = R_q::new(data2);
+    let too_big_poly2 = Rq::new(data2);
     println!("poly: {}", too_big_poly);
     println!("poly2: {}", too_big_poly2);
 
@@ -101,8 +101,8 @@ fn util_test() {
     println!("{}", p1);
 
 
-    // test random sampling Z_q
-    let sample = random_sample_Z_q(Q, 256);
+    // test random sampling Zq
+    let sample = random_sample_Zq(Q, 256);
     println!("String of integers mod q:");
     println!("{:?}", sample);
 

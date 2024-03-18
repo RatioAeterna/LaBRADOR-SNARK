@@ -1,7 +1,4 @@
-use ndarray::{Array2, Ix2, concatenate};
-use rand::prelude::*;
-use rand::{Rng, SeedableRng};
-use rand::distributions::Uniform;
+use ndarray::Array2;
 use std::collections::HashMap;
 use std::mem;
 
@@ -12,10 +9,10 @@ use crate::constants::*;
 
 pub struct CRS {
     // TODO should these fields be public? Perhaps not. Will fix later. 
-    pub A_mat : Array2<R_q>,
-    pub B_mat : HashMap<(usize, usize), Array2<R_q>>,
-    pub C_mat : HashMap<(usize, usize, usize), Array2<R_q>>,
-    pub D_mat : HashMap<(usize, usize, usize), Array2<R_q>>,
+    pub A_mat : Array2<Rq>,
+    pub B_mat : HashMap<(usize, usize), Array2<Rq>>,
+    pub C_mat : HashMap<(usize, usize, usize), Array2<Rq>>,
+    pub D_mat : HashMap<(usize, usize, usize), Array2<Rq>>,
 }
 
 
@@ -32,9 +29,9 @@ impl CRS {
             }
         }
         */
-        let mut B_mat : HashMap<(usize, usize), Array2<R_q>> = HashMap::new();
-        let mut C_mat : HashMap<(usize, usize, usize), Array2<R_q>> = HashMap::new();
-        let mut D_mat : HashMap<(usize, usize, usize), Array2<R_q>> = HashMap::new();
+        let mut B_mat : HashMap<(usize, usize), Array2<Rq>> = HashMap::new();
+        let mut C_mat : HashMap<(usize, usize, usize), Array2<Rq>> = HashMap::new();
+        let mut D_mat : HashMap<(usize, usize, usize), Array2<Rq>> = HashMap::new();
 
         println!("Generating B matrices");
         
@@ -79,20 +76,20 @@ impl CRS {
 
 pub struct Transcript {
     // fields (see protocol)
-    pub u_1 : Vec<R_q>,
-    // pub Pi_i : Vec<Array2<Z_q>>, TODO Yes, we want this in here eventually.
-    pub projection : Vec<Z_q>,
-    pub psi : Vec<Vec<Z_q>>, // note: This contains all ceil(128/log(q)) psi_k
-    pub omega : Vec<Vec<Z_q>>, // note: This contains all ceil(128/log(q)) omega_k
-    pub b_prime_prime: Vec<R_q>,
-    pub alpha : Vec<R_q>,
-    pub beta : Vec<R_q>,
-    pub u_2 : Vec<R_q>,
-    pub c : Vec<R_q>,
-    pub z : Vec<R_q>,
-    pub t_i_all : Vec<Vec<R_q>>, // TODO forgive the slightly goofy name will fix later
-    pub Gij : Array2<R_q>,
-    pub Hij : Array2<R_q>,
+    pub u_1 : Vec<Rq>,
+    pub Pi_i_all : Vec<Array2<Zq>>, 
+    pub projection : Vec<Zq>,
+    pub psi : Vec<Vec<Zq>>, // note: This contains all ceil(128/log(q)) psi_k
+    pub omega : Vec<Vec<Zq>>, // note: This contains all ceil(128/log(q)) omega_k
+    pub b_prime_prime: Vec<Rq>,
+    pub alpha : Vec<Rq>,
+    pub beta : Vec<Rq>,
+    pub u_2 : Vec<Rq>,
+    pub c : Vec<Rq>,
+    pub z : Vec<Rq>,
+    pub t_i_all : Vec<Vec<Rq>>, 
+    pub Gij : Array2<Rq>,
+    pub Hij : Array2<Rq>,
 }
 
 
@@ -101,8 +98,7 @@ impl Transcript {
     pub fn size_in_bytes(&self) -> usize {
         let mut size = 0;
         size += mem::size_of_val(&self.u_1);
-        // TODO add this back in
-        //size += mem::size_of_val(&self.Pi_i);
+        size += mem::size_of_val(&self.Pi_i_all);
         size += mem::size_of_val(&self.projection);
         size += mem::size_of_val(&self.psi);
         size += mem::size_of_val(&self.omega);
@@ -131,25 +127,25 @@ pub struct State {
     // in F.
 
     // Contents of F:
-    pub phi_k : Vec<Array2<R_q>>,
-    pub a_k : Vec<Array2<R_q>>,
-    pub b_k : Vec<R_q>,
+    pub phi_k : Vec<Array2<Rq>>,
+    pub a_k : Vec<Array2<Rq>>,
+    pub b_k : Vec<Rq>,
 
     // Contents of F' (constant term of the solution must be zero):
-    pub phi_prime_k : Vec<Array2<R_q>>,
-    pub a_prime_k : Vec<Array2<R_q>>,
-    pub b_prime_k : Vec<Z_q>,
+    pub phi_prime_k : Vec<Array2<Rq>>,
+    pub a_prime_k : Vec<Array2<Rq>>,
+    pub b_prime_k : Vec<Zq>,
 }
 
 impl State {
 
-    fn gen_f(S: &Array2<R_q>) -> (Array2<R_q>, Array2<R_q>, R_q) {
+    fn gen_f(S: &Array2<Rq>) -> (Array2<Rq>, Array2<Rq>, Rq) {
         // random generation of the polynomial matrix Aij (NOT TO BE CONFUSED WITH CRS matrix A!)
-        let mut Aij = Array2::from_elem((R,R), R_q::new(vec![])); 
+        let mut Aij = Array2::from_elem((R,R), Rq::new(vec![])); 
         for i in 0..R {
             for j in 0..R {
                 let a_ij = generate_polynomial(*Q,D);
-                if Aij[[i,j]] == R_q::new(vec![]) {
+                if Aij[[i,j]] == Rq::new(vec![]) {
                     Aij[[i,j]] = a_ij.clone();
                     Aij[[j,i]] = a_ij;
                 }
@@ -165,7 +161,7 @@ impl State {
         */
 
         // random generation of random polynomial matrix Phi
-        let mut Phi = Array2::from_elem((N,R), R_q::new(vec![])); 
+        let mut Phi = Array2::from_elem((N,R), Rq::new(vec![])); 
         for i in 0..R {
             for j in 0..N {
                 let phi_ji = generate_polynomial(*Q,D);
@@ -175,7 +171,7 @@ impl State {
 
         // Next, we need to compute 'b' such that this relation is equal to zero
         // So we compute the values of the relation and work backwards
-        let mut a_product : R_q = R_q::new(vec![]);
+        let mut a_product : Rq = Rq::new(vec![]);
         for i in 0..R {
             for j in 0..R {
                 let vec = &S.column(i).to_vec();
@@ -192,13 +188,13 @@ impl State {
             }
         }
 
-        let mut phi_product : R_q = R_q::new(vec![]);
+        let mut phi_product : Rq = Rq::new(vec![]);
         for i in 0..R {
             let inner_prod = polynomial_vec_inner_product(&Phi.column(i).to_vec(), &S.column(i).to_vec());
             phi_product = phi_product.clone() + inner_prod;
         }
 
-        let b : R_q = &a_product + &phi_product;
+        let b : Rq = &a_product + &phi_product;
         //println!("Generated b!");
         //println!("{}\n\n", b);
 
@@ -211,19 +207,19 @@ impl State {
 
 
 
-    pub fn new(S: &Array2<R_q>) -> Self {
-        let mut phi_k : Vec<Array2<R_q>> = vec![];
-        let mut a_k : Vec<Array2<R_q>> = vec![];
-        let mut b_k : Vec<R_q> = vec![];
+    pub fn new(S: &Array2<Rq>) -> Self {
+        let mut phi_k : Vec<Array2<Rq>> = vec![];
+        let mut a_k : Vec<Array2<Rq>> = vec![];
+        let mut b_k : Vec<Rq> = vec![];
 
-        let mut phi_prime_k : Vec<Array2<R_q>> = vec![];
-        let mut a_prime_k : Vec<Array2<R_q>> = vec![];
-        let mut b_prime_k : Vec<Z_q> = vec![];
+        let mut phi_prime_k : Vec<Array2<Rq>> = vec![];
+        let mut a_prime_k : Vec<Array2<Rq>> = vec![];
+        let mut b_prime_k : Vec<Zq> = vec![];
 
         for k in 0..K {
-            let phi : Array2<R_q>;
-            let a : Array2<R_q>;
-            let b : R_q;
+            let phi : Array2<Rq>;
+            let a : Array2<Rq>;
+            let b : Rq;
 
             let (phi, a, b) = Self::gen_f(S);
 
@@ -236,7 +232,7 @@ impl State {
 
             phi_prime_k.push(phi);
             a_prime_k.push(a);
-            b_prime_k.push(b.eval(Z_q::from(0)) );
+            b_prime_k.push(b.eval(Zq::from(0)) );
         }
         for l in 0..L {
             // generate corresponding f' functions.

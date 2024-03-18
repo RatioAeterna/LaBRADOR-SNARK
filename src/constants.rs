@@ -1,8 +1,7 @@
 use crate::util::*;
 use lazy_static::lazy_static;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use concrete_ntt::native64::Plan32;
-use num_prime::{PrimalityTestConfig};
 use num_prime::nt_funcs::{is_prime};
 
 
@@ -54,7 +53,7 @@ pub fn find_suitable_prime(start : i128) -> i128 {
 
 // TODO EVENTUALLY we'll want to make sure it actually splits R_q into two irreducible ideals, etc.
 pub fn is_suitable(candidiate_q : i128) -> bool {
-    return (mod_positive(candidiate_q, 2*D) == 1);
+    return mod_positive(candidiate_q, 2*D) == 1;
 }
 
 
