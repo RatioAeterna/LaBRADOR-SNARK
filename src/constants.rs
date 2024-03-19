@@ -3,12 +3,16 @@ use lazy_static::lazy_static;
 use std::sync::atomic::AtomicBool;
 use concrete_ntt::native64::Plan32;
 use num_prime::nt_funcs::{is_prime};
+use once_cell::sync::OnceCell;
 
+pub static VERBOSE: OnceCell<bool> = OnceCell::new();
 
+pub fn is_verbose() -> bool {
+    *VERBOSE.get().unwrap_or(&false)
+}
 
 // polynomial degree modulus
-//pub const D: i128 = 64; // used in the paper
-pub const D: i128 = 64; // DEBUG
+pub const D: i128 = 64; // used in the paper
 
 
 // commitment ranks... 

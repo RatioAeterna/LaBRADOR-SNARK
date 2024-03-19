@@ -7,11 +7,16 @@ edition = "2021"
 
 
 [[bin]]
-name = "LaBRADOR_SNARK"
+name = "labrador_snark"
 path = "src/main.rs"
 
 [[bench]]
-name = "LaBRADOR_perf"
+name = "labrador_perf"
+path = "benches/labrador_perf.rs"
+harness = false
+
+[[bench]]
+name = "ntt_speed"
 path = "benches/ntt_speed.rs"
 harness = false
 
@@ -31,10 +36,11 @@ proptest = "1.4.0"
 num-bigint = "0.4.4"
 num-traits = "0.2.18"
 num-prime = "0.4.3"
+clap_derive = "4.5.3" 
+clap = { version = "4.5.3", features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.3"
-#proptest = "1.4.0"
 
 [profile.release]
 debug = true

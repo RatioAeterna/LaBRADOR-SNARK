@@ -8,11 +8,10 @@ use crate::constants::*;
 
 
 pub struct CRS {
-    // TODO should these fields be public? Perhaps not. Will fix later. 
-    pub A_mat : Array2<Rq>,
-    pub B_mat : HashMap<(usize, usize), Array2<Rq>>,
-    pub C_mat : HashMap<(usize, usize, usize), Array2<Rq>>,
-    pub D_mat : HashMap<(usize, usize, usize), Array2<Rq>>,
+    pub a_mat : Array2<Rq>,
+    pub b_mat : HashMap<(usize, usize), Array2<Rq>>,
+    pub c_mat : HashMap<(usize, usize, usize), Array2<Rq>>,
+    pub d_mat : HashMap<(usize, usize, usize), Array2<Rq>>,
 }
 
 
@@ -20,8 +19,8 @@ impl CRS {
     // TODO random uniform generation for now... perhaps this warrants something more sophisticated
     // later.
     pub fn new() -> Self {
-        println!("Generating random matrix A");
-        let A_mat = generate_random_matrix(KAPPA, N, *Q, D);
+        if is_verbose() {println!("Generating random matrix A");}
+        let a_mat = generate_random_matrix(KAPPA, N, *Q, D);
         /*
         for i in 0..KAPPA {
             for j in 0..N {
@@ -29,11 +28,11 @@ impl CRS {
             }
         }
         */
-        let mut B_mat : HashMap<(usize, usize), Array2<Rq>> = HashMap::new();
-        let mut C_mat : HashMap<(usize, usize, usize), Array2<Rq>> = HashMap::new();
-        let mut D_mat : HashMap<(usize, usize, usize), Array2<Rq>> = HashMap::new();
+        let mut b_mat : HashMap<(usize, usize), Array2<Rq>> = HashMap::new();
+        let mut c_mat : HashMap<(usize, usize, usize), Array2<Rq>> = HashMap::new();
+        let mut d_mat : HashMap<(usize, usize, usize), Array2<Rq>> = HashMap::new();
 
-        println!("Generating B matrices");
+        if is_verbose() {println!("Generating B matrices");}
         
 
         // TODO maybe put this all in one loop to clean it up, but then again maybe not.
@@ -41,43 +40,43 @@ impl CRS {
         // that, at least for now.
         for i in 0..R {
             for k in 0..(*T_1 as usize) {
-                let B_ik = generate_random_matrix(KAPPA_1, KAPPA, *Q, D);
+                let b_ik = generate_random_matrix(KAPPA_1, KAPPA, *Q, D);
                 let index = (i,k);
-                B_mat.insert(index, B_ik);
+                b_mat.insert(index, b_ik);
             }
         }
 
-        println!("Generating C matrices");
+        if is_verbose() {println!("Generating C matrices");}
 
         for i in 0..R {
             for j in i..R {
                 for k in 0..(*T_2 as usize) {
-                    let C_ijk = generate_random_matrix(KAPPA_2, 1, *Q, D);
+                    let c_ijk = generate_random_matrix(KAPPA_2, 1, *Q, D);
                     let index = (i,j,k);
-                    C_mat.insert(index, C_ijk);
+                    c_mat.insert(index, c_ijk);
                 }
             }
         }
 
-        println!("Generating D matrices");
+        if is_verbose() {println!("Generating D matrices");}
 
         for i in 0..R {
             for j in i..R {
                 for k in 0..(*T_1 as usize) {
-                    let D_ijk = generate_random_matrix(KAPPA_2, 1, *Q, D);
+                    let d_ijk = generate_random_matrix(KAPPA_2, 1, *Q, D);
                     let index = (i,j,k);
-                    D_mat.insert(index, D_ijk);
+                    d_mat.insert(index, d_ijk);
                 }
             }
         }
-        CRS {A_mat, B_mat, C_mat, D_mat, }
+        CRS {a_mat, b_mat, c_mat, d_mat, }
     }
 }
 
 pub struct Transcript {
     // fields (see protocol)
     pub u_1 : Vec<Rq>,
-    pub Pi_i_all : Vec<Array2<Zq>>, 
+    pub pi_i_all : Vec<Array2<Zq>>, 
     pub projection : Vec<Zq>,
     pub psi : Vec<Vec<Zq>>, // note: This contains all ceil(128/log(q)) psi_k
     pub omega : Vec<Vec<Zq>>, // note: This contains all ceil(128/log(q)) omega_k
@@ -88,8 +87,8 @@ pub struct Transcript {
     pub c : Vec<Rq>,
     pub z : Vec<Rq>,
     pub t_i_all : Vec<Vec<Rq>>, 
-    pub Gij : Array2<Rq>,
-    pub Hij : Array2<Rq>,
+    pub g_mat : Array2<Rq>,
+    pub h_mat : Array2<Rq>,
 }
 
 
@@ -98,7 +97,7 @@ impl Transcript {
     pub fn size_in_bytes(&self) -> usize {
         let mut size = 0;
         size += mem::size_of_val(&self.u_1);
-        size += mem::size_of_val(&self.Pi_i_all);
+        size += mem::size_of_val(&self.pi_i_all);
         size += mem::size_of_val(&self.projection);
         size += mem::size_of_val(&self.psi);
         size += mem::size_of_val(&self.omega);
@@ -109,8 +108,8 @@ impl Transcript {
         size += mem::size_of_val(&self.c);
         size += mem::size_of_val(&self.z);
         size += mem::size_of_val(&self.t_i_all);
-        size += mem::size_of_val(&self.Gij);
-        size += mem::size_of_val(&self.Hij);
+        size += mem::size_of_val(&self.g_mat);
+        size += mem::size_of_val(&self.h_mat);
         size
     }
 }
@@ -139,33 +138,26 @@ pub struct State {
 
 impl State {
 
-    fn gen_f(S: &Array2<Rq>) -> (Array2<Rq>, Array2<Rq>, Rq) {
-        // random generation of the polynomial matrix Aij (NOT TO BE CONFUSED WITH CRS matrix A!)
-        let mut Aij = Array2::from_elem((R,R), Rq::new(vec![])); 
+    fn gen_f(witness: &Array2<Rq>) -> (Array2<Rq>, Array2<Rq>, Rq) {
+        // random generation of the polynomial matrix a_constraints (NOT TO BE CONFUSED WITH CRS matrix A!)
+        let mut a_constraints = Array2::from_elem((R,R), Rq::new(vec![])); 
         for i in 0..R {
             for j in 0..R {
                 let a_ij = generate_polynomial(*Q,D);
-                if Aij[[i,j]] == Rq::new(vec![]) {
-                    Aij[[i,j]] = a_ij.clone();
-                    Aij[[j,i]] = a_ij;
+                if a_constraints[[i,j]] == Rq::new(vec![]) {
+                    a_constraints[[i,j]] = a_ij.clone();
+                    a_constraints[[j,i]] = a_ij;
                 }
             }
         }
-        println!("Generated Aij!");
-        /*
-        for row in Aij.rows() {
-            for poly in row {
-                println!("{}", poly);
-            }
-        }
-        */
+        if is_verbose() {println!("Generated a_constraints!");}
 
-        // random generation of random polynomial matrix Phi
-        let mut Phi = Array2::from_elem((N,R), Rq::new(vec![])); 
+        // random generation of random polynomial matrix phi
+        let mut phi = Array2::from_elem((N,R), Rq::new(vec![])); 
         for i in 0..R {
             for j in 0..N {
                 let phi_ji = generate_polynomial(*Q,D);
-                Phi[[j,i]] = phi_ji;
+                phi[[j,i]] = phi_ji;
             }
         }
 
@@ -174,23 +166,15 @@ impl State {
         let mut a_product : Rq = Rq::new(vec![]);
         for i in 0..R {
             for j in 0..R {
-                let vec = &S.column(i).to_vec();
-                let vec2 = &S.column(j).to_vec();
-                for k in 0..vec.len() {
-                    //println!("VEC I ENTRY: {} ", vec[k]);
-                    //println!("VEC J ENTRY: {} ", vec2[k]);
-                    //println!("SANITY CHECK::: {} ", &S[[i,j]]);
-                }
-
-                let inner_prod = polynomial_vec_inner_product(&S.column(i).to_vec(), &S.column(j).to_vec());
-                let prod = Aij[[i,j]].clone() * inner_prod;
+                let inner_prod = polynomial_vec_inner_product(&witness.column(i).to_vec(), &witness.column(j).to_vec());
+                let prod = a_constraints[[i,j]].clone() * inner_prod;
                 a_product = a_product.clone() + prod;
             }
         }
 
         let mut phi_product : Rq = Rq::new(vec![]);
         for i in 0..R {
-            let inner_prod = polynomial_vec_inner_product(&Phi.column(i).to_vec(), &S.column(i).to_vec());
+            let inner_prod = polynomial_vec_inner_product(&phi.column(i).to_vec(), &witness.column(i).to_vec());
             phi_product = phi_product.clone() + inner_prod;
         }
 
@@ -199,15 +183,15 @@ impl State {
         //println!("{}\n\n", b);
 
         //println!("A product: {}\n", a_product);
-        //println!("Phi product: {}", phi_product);
+        //println!("phi product: {}", phi_product);
 
-        (Phi, Aij, b)
+        (phi, a_constraints, b)
     }
 
 
 
 
-    pub fn new(S: &Array2<Rq>) -> Self {
+    pub fn new(witness: &Array2<Rq>) -> Self {
         let mut phi_k : Vec<Array2<Rq>> = vec![];
         let mut a_k : Vec<Array2<Rq>> = vec![];
         let mut b_k : Vec<Rq> = vec![];
@@ -216,12 +200,8 @@ impl State {
         let mut a_prime_k : Vec<Array2<Rq>> = vec![];
         let mut b_prime_k : Vec<Zq> = vec![];
 
-        for k in 0..K {
-            let phi : Array2<Rq>;
-            let a : Array2<Rq>;
-            let b : Rq;
-
-            let (phi, a, b) = Self::gen_f(S);
+        for _k in 0..K {
+            let (phi, a, b) = Self::gen_f(witness);
 
             // TODO obviously cloning is not great here, but references are an even worse option
             // because no immediate way to do this without creating dangling pointer / not
@@ -234,8 +214,9 @@ impl State {
             a_prime_k.push(a);
             b_prime_k.push(b.eval(Zq::from(0)) );
         }
-        for l in 0..L {
+        for _l in 0..L {
             // generate corresponding f' functions.
+            // TODO actually do something here, maybe
         }
         State {
             phi_k,

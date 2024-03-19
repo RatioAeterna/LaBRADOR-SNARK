@@ -368,8 +368,8 @@ impl Rq {
         // TODO add NTT logic here later.
         
         if NTT_ENABLED.load(AtomicOrdering::SeqCst) {
-            let mut lhs_data = transform_slice_zq_to_u64((&lhs.0).data());
-            let mut rhs_data = transform_slice_zq_to_u64((&rhs.0).data());
+            let lhs_data = transform_slice_zq_to_u64((&lhs.0).data());
+            let rhs_data = transform_slice_zq_to_u64((&rhs.0).data());
             let mut prod : Vec<u64> = vec![0; D as usize];
             
             (*PLAN).negacyclic_polymul(&mut prod, &lhs_data, &rhs_data);

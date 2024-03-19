@@ -1,24 +1,13 @@
-extern crate nalgebra as na;
-use na::{Matrix, DMatrix};
-use rand::prelude::*;
-use rand::{Rng, SeedableRng};
-use rand::distributions::Uniform;
-use na::base::DVector;
-use ndarray::{Array2, concatenate};
-use ndarray_linalg::norm;
-use num_traits::One;
-use num_traits::Zero;
-use labrador_snark::algebraic::*;
-use labrador_snark::util::*;
 use labrador_snark::proofgen::*;
 use labrador_snark::constants::*; 
 use labrador_snark::structs::*;
 use labrador_snark::verification::*;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
+use clap::Parser;
 
 // TODO also look into using rustfmt with the LSP server, etc.
 fn print_constants() {
-    println!("Printing runtime-computed constants:\n");
+    println!("Printing runtime-computed constants:");
     println!("Q: {}", *Q);
     println!("BETA: {}", *BETA_BOUND);
     println!("STD: {}", *STD);
@@ -33,41 +22,76 @@ fn print_constants() {
     println!("BETA_PRIME: {}", *BETA_PRIME);
 }
 
+/// Robust implementation of the LaBRADOR Cryptographic Proof System 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Verbosity setting (default value of false / no printed output)
+    #[arg(short, long)]
+    verbose: bool,
+
+    /// Enable Number Theoretic Transform for faster polynomial multiplication
+    #[arg(short, long)]
+    ntt: bool,
+}
+
+
 fn main() {
+    let args = Args::parse();
+    let verbose : bool = args.verbose;
+    let ntt : bool = args.ntt;
 
-    NTT_ENABLED.store(false, Ordering::SeqCst);
+    if verbose {
+        let _ = VERBOSE.set(true);
+    }
+    else {
+        let _ = VERBOSE.set(false);
+    }
 
-    println!("Welcome to the LaBRADOR Proof System!");
+    if ntt {
+        NTT_ENABLED.store(true, Ordering::SeqCst);
+    }
+    else {
+        NTT_ENABLED.store(false, Ordering::SeqCst);
+    }
 
-    print_constants();
+    if is_verbose() {
+        println!("Welcome to the LaBRADOR Proof System!");
+        println!("=====================================\n");
+        print_constants();
+        println!("Generating Witness Matrix");
+    }
 
-    println!("Generating Witness Matrix S");
-    let S = generate_witness();
-    //println!("sanity check of witness vals: {}", S[[0,0]]);
-    println!("sanity check of witness vals: {}", &S[[0,0]]);
+    let witness = generate_witness();
 
-    println!("Generating Common Reference String (CRS)");
+    if is_verbose() {
+        println!("sanity check of witness vals: {}", &witness[[0,0]]);
+        println!("Generating Common Reference String (CRS)");
+    }
+
     let crs = CRS::new();
 
-    println!("Generating State");
-    let st = State::new(&S);
+    if is_verbose() { println!("Generating State"); }
+
+    let st = State::new(&witness);
 
     let mut verifier = Verifier::new(st.b_prime_k.clone());
-    let mut prover = Prover::new(&S, &mut verifier);
+    let mut prover = Prover::new(&witness, &mut verifier);
 
-    println!("Generating proof..");
+
+    if is_verbose() { println!("Generating proof.."); }
+
     let proof_transcript : Transcript = prover.proof_gen(&st, &crs);
-    println!("Generated proof!");
 
-    println!("Verifying proof..");
+    if is_verbose() { println!("Generated proof!"); }
+
+    if is_verbose() { println!("Verifying proof.."); }
     let res : bool = verifier.verify(&st, &proof_transcript, &crs);
     assert!( res, "Error: Proof Verification Failed");
-    println!("Success: Proof Verified!");
-    println!("=========================");
-    println!("Size of proof: {} KB", (proof_transcript.size_in_bytes() as f64)/ 1024.0);
-
-
-
-
+    if is_verbose() { 
+        println!("Success: Proof Verified!"); 
+        println!("=========================");
+        println!("Size of proof: {} KB", (proof_transcript.size_in_bytes() as f64)/ 1024.0);
+    }
 }
 

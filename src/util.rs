@@ -24,23 +24,20 @@ pub fn mod_positive(dividend: i128, divisor: i128) -> i128 {
 // TODO: more sophisticated / cleaner random polynomial sampling
 pub fn generate_polynomial(q : i128, d : i128) -> Rq {
     let mut rng = rand::thread_rng();
-    //let num_terms = rng.gen_range(1, max_degree + 2);
     let mut coefficient_vec: Vec<Zq> = Vec::new();
-    for degree in 0..d {
+    for _degree in 0..d {
         coefficient_vec.push(Zq::from(rng.gen_range(0..q)));
     }
-    //println!("GENERATING NEW POLYNOMIAL... COEFFICIENT VEC: {:?}", coefficient_vec);
-    let mut poly = Rq::new(coefficient_vec);
-    //println!("Actual poly: {}", poly);
+    let poly = Rq::new(coefficient_vec);
     poly
 }
 
 pub fn reduce_polynomial(p : &Rq) -> Rq {
     let mut rng = rand::thread_rng();
-    let mut coefficient_vec: Vec<Zq> = p.data_vec();
+    let coefficient_vec: Vec<Zq> = p.data_vec();
     let mut new_coeffs: Vec<Zq> = vec![];
     for degree in 0..coefficient_vec.len() {
-        // 75% chance to be zero
+        // some chance to be zero
         if rng.gen_bool(0.0) {
             new_coeffs.push(Zq::zero());
         }
@@ -48,7 +45,7 @@ pub fn reduce_polynomial(p : &Rq) -> Rq {
             new_coeffs.push(coefficient_vec[degree]/2);
         }
     }
-    let mut poly = Rq::new(new_coeffs);
+    let poly = Rq::new(new_coeffs);
     poly
 }
 
@@ -57,7 +54,7 @@ pub fn generate_sparse_polynomial(q : i128, d : i128) -> Rq {
     let mut rng = rand::thread_rng();
     //let num_terms = rng.gen_range(1, max_degree + 2);
     let mut coefficient_vec: Vec<Zq> = Vec::new();
-    for degree in 0..d {
+    for _degree in 0..d {
         // 50% chance to be zero
         if rng.gen_bool(0.5) {
             coefficient_vec.push(Zq::zero());
@@ -66,7 +63,7 @@ pub fn generate_sparse_polynomial(q : i128, d : i128) -> Rq {
             coefficient_vec.push(Zq::from(rng.gen_range(0..q/100)));
         }
     }
-    let mut poly = Rq::new(coefficient_vec);
+    let poly = Rq::new(coefficient_vec);
     poly
 }
 
@@ -88,11 +85,11 @@ pub fn generate_random_matrix(rows : usize, cols : usize, q : i128, d : i128) ->
 // TODO yes we currently have to clone coeff_dist in when we want to re-use it, but it's NBD
 // because it's usually very small. We don't want to use a mutable ref because that would be weird,
 // since we don't want to change the underlying distribution data / remove elements if we're gonna re-use it later...
-pub fn generate_polynomial_picky(q : i128, d : usize, mut coeff_dist : Vec<Zq>) -> Rq {
+pub fn generate_polynomial_picky(d : usize, mut coeff_dist : Vec<Zq>) -> Rq {
     assert!(coeff_dist.len() == d, "Must have one coefficient for each degree of polynomial");
     let mut rng = rand::thread_rng();
     let mut coefficient_vec: Vec<Zq> = Vec::new();
-    for degree in 0..d {
+    for _degree in 0..d {
         let random_index = rng.gen_range(0..coeff_dist.len());
         //let random_index : usize = usize::from(coeff_dist.as_slice().choose(&mut rng).unwrap());
         let coeff = coeff_dist[random_index];
@@ -105,7 +102,7 @@ pub fn generate_polynomial_picky(q : i128, d : usize, mut coeff_dist : Vec<Zq>) 
             coefficient_vec.push(coeff);
         }
     }
-    let mut poly = Rq::new(coefficient_vec);
+    let poly = Rq::new(coefficient_vec);
     poly
 }
 
@@ -169,7 +166,7 @@ pub fn multiply_poly_ints(p : &Rq, ints: &Vec<Zq>) -> Rq {
 
 
 // randomly samples n integers mod q, returns them as a vec
-pub fn random_sample_Zq(n : i128, q: i128) -> Vec<Zq> {
+pub fn random_sample_zq(n : i128, q: i128) -> Vec<Zq> {
 
     let mut rng = thread_rng();
     let dist = Uniform::from(0..q);
@@ -201,11 +198,6 @@ pub fn scale_polynomial_rational(p : &Rq, a : &Zq, b : &Zq) -> Rq {
     return Rq::new(scaled_poly_vec);
 }
 
-fn divide_and_round(dividend: Zq, divisor: Zq) -> Zq {
-    (dividend + divisor / Zq::from(2)) / divisor
-}
-
-
 pub fn vec_poly_norm_squared(vec: &Vec<Rq>) -> f64 {
     vec.iter()
         .map(|poly| poly_norm(poly))  // Compute the squared norm of each polynomial
@@ -231,7 +223,7 @@ pub fn l2_norm(vec : &Vec<i128>) -> f64 {
     let sum_of_squares: i128 = vec.iter().map(|&x| x * x).sum();
     (sum_of_squares as f64).sqrt()
 }
-pub fn l2_norm_Zq(vec : &Vec<Zq>) -> f64 {
+pub fn l2_norm_zq(vec : &Vec<Zq>) -> f64 {
     let sum_of_squares: i128 = vec.iter().map(|&x| i128::from(x) * i128::from(x)).sum();
     (sum_of_squares as f64).sqrt()
 }
@@ -248,7 +240,7 @@ pub fn operator_norm(c : &Rq) -> f64 {
 
     let mut sup_estimate : f64 = 0.;
 
-    for n in 0..n_samples {
+    for _n in 0..n_samples {
         let r = generate_polynomial(*Q, D);
         let norm : f64 = poly_norm_strict(&(c * &r));        
         let ratio : f64 = norm / poly_norm_strict(&r); 
@@ -282,7 +274,7 @@ pub fn vec_inner_product(v1: &Vec<i128>, v2: &Vec<i128>) -> i128 {
     result
 }
 // TODO make these generic
-pub fn vec_inner_product_Zq(v1: &Vec<Zq>, v2: &Vec<Zq>) -> Zq {
+pub fn vec_inner_product_zq(v1: &Vec<Zq>, v2: &Vec<Zq>) -> Zq {
     assert!(v1.len() == v2.len(), "inner product not defined on vectors of unequal length");
     let mut result : Zq = Zq::zero();
     for i in 0..v1.len() {
@@ -327,7 +319,7 @@ pub fn add_vecs(v1: &Vec<i128>, v2: &Vec<i128>) -> Vec<i128> {
 }
 
 // TODO genericize later
-pub fn add_vecs_Zq(v1: &Vec<Zq>, v2: &Vec<Zq>) -> Vec<Zq> {
+pub fn add_vecs_zq(v1: &Vec<Zq>, v2: &Vec<Zq>) -> Vec<Zq> {
     assert!(v1.len() == v2.len(), "summation not defined on vectors of unequal length");
     let mut v_res : Vec<Zq> = vec![];
     for i in 0..v1.len() {
@@ -352,7 +344,7 @@ pub fn add_poly_vec_by_poly(v1: &Vec<Rq>, p: &Rq) -> Vec<Rq> {
 
 pub fn gen_empty_poly_vec(n : usize) -> Vec<Rq> {
     let mut v_res : Vec<Rq> = vec![];
-    for i in 0..n {
+    for _i in 0..n {
         v_res.push(Rq::new(vec![]));
     }
 
@@ -378,7 +370,7 @@ pub fn decompose_polynomial_vec(vec : &Vec<Rq>, base : i128, exp: i128) -> Vec<V
 
 // computes the centered representative of a polynomial coefficient wrt a given base, i.e.,
 // returns a value in the range of [-b/2, b/2]
-pub fn centered_rep(mut val : Zq, b: i128) -> Zq {
+pub fn centered_rep(val : Zq, b: i128) -> Zq {
     //println!("centered representative computation! val: {}, b: {}", val, b);
     if val > b / 2 {
         let new_val = Zq::new((b - i128::from(val)) % b);
@@ -539,7 +531,8 @@ pub fn matmul(m1: &Array2<i128>, m2: &Array2<i128>) -> Array2<i128> {
     result
 }
 
-pub fn matmul_Zq(m1: &Array2<Zq>, m2: &Array2<Zq>) -> Array2<Zq> {
+// TODO just make generic eventually
+pub fn matmul_zq(m1: &Array2<Zq>, m2: &Array2<Zq>) -> Array2<Zq> {
     assert!(m1.shape()[1] == m2.shape()[0], "matrix product not defined on matrices which do not have dimension (m,n) x (n,k), for some m,n,k");
     //println!("m1 shape: {:?} \n m2 shape: {:?}", m1.shape(), m2.shape());
     let m = m1.shape()[0];
@@ -550,7 +543,7 @@ pub fn matmul_Zq(m1: &Array2<Zq>, m2: &Array2<Zq>) -> Array2<Zq> {
         for j in 0..k {
             let v1 = m1.row(i).to_vec();
             let v2 = m2.column(j).to_vec();
-            result[[i,j]] = vec_inner_product_Zq(&v1, &v2);
+            result[[i,j]] = vec_inner_product_zq(&v1, &v2);
         }
     }
     result
@@ -580,15 +573,15 @@ pub fn sample_jl_projection_gen() -> Array2<i128> {
 
     let mut rng = rand::thread_rng();
 
-    let mut Pi_i : Array2<i128> = Array2::zeros((256, N*(D as usize)));
+    let mut pi_i : Array2<i128> = Array2::zeros((256, N*(D as usize)));
 
-    for ((i, j), value) in Pi_i.indexed_iter_mut() {
+    for ((_i, _j), value) in pi_i.indexed_iter_mut() {
         *value = between.sample(&mut rng);
     }
 
 
     // TODO don't entirely understand the functionality of this line.. but seems to work.
-    Pi_i 
+    pi_i 
 }
 
 pub fn jl_project_gen(vec: &Vec<i128>) -> Vec<i128> {
@@ -603,19 +596,18 @@ pub fn jl_project_gen(vec: &Vec<i128>) -> Vec<i128> {
     // we get random matrices in {-1,0,1}
     let mut projection : Vec<i128> = vec![0 ; 256];
     //for i in 0..R {
-        //let Pi_i = sample_jl_projection_gen();
-        let mut Pi_i : Array2<i128> = Array2::zeros((256, N*(D as usize)));
-        for ((i, j), value) in Pi_i.indexed_iter_mut() {
+        let mut pi_i: Array2<i128> = Array2::zeros((256, N*(D as usize)));
+        for ((_i, _j), value) in pi_i.indexed_iter_mut() {
             *value = choices[dist.sample(&mut rng)] as i128;
         }
-        //println!("Got Pi_i for i={}",i);
+        //println!("Got pi_i for i={}",i);
         let s_i_coeffs : Array2<i128> = vec_to_column_array(vec);
         println!("coeffs: {:?}", s_i_coeffs.column(0).to_vec());
-        println!("Pi_i column 0: {:?}", Pi_i.column(0).to_vec());
+        println!("pi_i column 0: {:?}", pi_i.column(0).to_vec());
         //println!("Got s_i coeffs");
         // NOTE: for reference, this is a 256x(ND) multiplied by an (ND)x1, giving a 256x1
         // which we turn into a vec
-        let product = matmul(&Pi_i, &s_i_coeffs).column(0).to_vec();
+        let product = matmul(&pi_i, &s_i_coeffs).column(0).to_vec();
         println!("JL PRODUCT! : {:?}", product);
         //println!("computed product");
         projection = add_vecs(&projection, &product);
