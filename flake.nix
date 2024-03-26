@@ -25,6 +25,7 @@
 	    cargo
             cargo-nextest
             rustup
+	    rustfmt
             # Add other essential Rust tools as needed
           ];
         };

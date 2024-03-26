@@ -1,8 +1,8 @@
+use labrador_snark::algebraic::*;
+use labrador_snark::constants::*;
+use labrador_snark::util::*;
 use proptest::prelude::*;
 use proptest::test_runner::{Config, TestRunner};
-use labrador_snark::constants::*;
-use labrador_snark::algebraic::*;
-use labrador_snark::util::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 proptest! {
@@ -34,7 +34,7 @@ proptest! {
     fn test_linearity_ntt_enabled(a in prop::collection::vec(any::<Rq>(), N as usize),
                                                 b in prop::collection::vec(any::<Rq>(), N as usize),
                                                 c in any::<Zq>()) {
-        
+
         NTT_ENABLED.store(true, Ordering::SeqCst);
         let product_ab = polynomial_vec_inner_product(&a, &b);
         println!("product ab! {}", product_ab);
@@ -62,9 +62,6 @@ proptest! {
         prop_assert!(inner_prod == poly_eval, "Conjugation Autmorphism invariant failed! Regular inner product {} should equal constant term {}", inner_prod, poly_eval);
     }
 }
-
-
-
 
 /*
 #[test]

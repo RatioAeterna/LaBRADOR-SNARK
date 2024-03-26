@@ -1,7 +1,6 @@
 pub mod algebraic;
-pub mod util;
-pub mod proofgen;
 pub mod constants;
-pub mod verification;
+pub mod proofgen;
 pub mod structs;
-
+pub mod util;
+pub mod verification;

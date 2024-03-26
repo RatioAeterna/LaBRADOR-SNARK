@@ -1,12 +1,12 @@
-use std::fmt;
-use polynomial::Polynomial;
 use crate::constants::*;
 use crate::util::*;
 use nalgebra::min;
-use num_traits::Zero;
 use num_traits::One;
+use num_traits::Zero;
+use polynomial::Polynomial;
 use std::cmp::Ordering;
-use std::sync::atomic::{Ordering as AtomicOrdering};
+use std::fmt;
+use std::sync::atomic::Ordering as AtomicOrdering;
 
 //#[cfg(test)]
 use proptest::prelude::*;
@@ -27,27 +27,27 @@ impl Zq {
     pub fn new(value: i128) -> Self {
         if MOD_SUSPENSION.load(AtomicOrdering::SeqCst) {
             Zq { value }
-        }
-        else {
-            Zq { value : mod_positive(value, *Q) }
+        } else {
+            Zq {
+                value: mod_positive(value, *Q),
+            }
         }
     }
-    pub fn lift(vec : &Vec<i128>) -> Vec<Zq> {
-        let mut res_vec : Vec<Zq> = vec![];
+    pub fn lift(vec: &Vec<i128>) -> Vec<Zq> {
+        let mut res_vec: Vec<Zq> = vec![];
 
         for i in 0..vec.len() {
             res_vec.push(Zq::from(vec[i]));
         }
         res_vec
     }
-    pub fn lift_inv(vec : &Vec<Zq>) -> Vec<i128> {
-        let mut res_vec : Vec<i128> = vec![];
+    pub fn lift_inv(vec: &Vec<Zq>) -> Vec<i128> {
+        let mut res_vec: Vec<i128> = vec![];
         for i in 0..vec.len() {
             res_vec.push(vec[i].value);
         }
         res_vec
     }
-
 }
 
 impl std::ops::Neg for Zq {
@@ -60,7 +60,6 @@ impl std::ops::Neg for Zq {
 }
 
 impl Zero for Zq {
-
     fn zero() -> Self {
         Zq { value: 0 }
     }
@@ -78,11 +77,6 @@ impl std::ops::Rem<i128> for Zq {
     }
 }
 
-
-
-
-
-
 impl One for Zq {
     fn one() -> Self {
         Zq { value: 1 }
@@ -94,7 +88,6 @@ impl std::iter::Sum for Zq {
         iter.fold(Self::zero(), |acc, x| acc + x)
     }
 }
-
 
 impl std::ops::Add for Zq {
     type Output = Self;
@@ -197,8 +190,6 @@ impl std::ops::SubAssign<Zq> for Zq {
     }
 }
 
-
-
 impl fmt::Display for Zq {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         //println!("DISPLAYING (the z_q...) {}", self.value);
@@ -217,7 +208,6 @@ impl From<&Zq> for u64 {
         item.value as u64
     }
 }
-
 
 impl From<Zq> for f32 {
     fn from(item: Zq) -> Self {
@@ -248,7 +238,6 @@ impl From<f32> for Zq {
         Self::new(item as i128)
     }
 }
-
 
 impl From<f64> for Zq {
     fn from(item: f64) -> Self {
@@ -286,8 +275,6 @@ impl PartialOrd<i128> for Zq {
     }
 }
 
-
-
 // Wrapper for Polynomial<Zq> which specifically uses
 // properties of Rq, aka Z[q]/(X^d+1)
 #[derive(Clone, Debug)]
@@ -297,38 +284,37 @@ impl Rq {
     // TODO maybe overload so you can pass in refs instead..
     pub fn new(coefficients: Vec<Zq>) -> Self {
         if MOD_SUSPENSION.load(AtomicOrdering::SeqCst) {
-            let poly : Polynomial<Zq> = Polynomial::new(coefficients);
+            let poly: Polynomial<Zq> = Polynomial::new(coefficients);
             Rq(poly)
-        }
-        else {
+        } else {
             Rq::reduction(coefficients)
         }
     }
-
 
     // assumes that moduluses are re-enabled.
     pub fn recompute_mod(&self) -> Self {
         let mut datavec = self.data_vec();
         for i in 0..datavec.len() {
-           datavec[i] = Zq::new(i128::from(datavec[i]));
+            datavec[i] = Zq::new(i128::from(datavec[i]));
         }
         Rq::reduction(datavec)
     }
-
 
     pub fn data_vec(&self) -> Vec<Zq> {
         self.0.data().to_vec()
     }
 
-    pub fn eval(&self,  x: Zq) -> Zq {
+    pub fn eval(&self, x: Zq) -> Zq {
         self.0.eval(x)
     }
 
-    pub fn get_term_of_deg(&self, deg : usize) -> Rq {
+    pub fn get_term_of_deg(&self, deg: usize) -> Rq {
         let datavec = self.0.data().to_vec();
-        if datavec.len() <= deg { return Rq::zero(); }
+        if datavec.len() <= deg {
+            return Rq::zero();
+        }
         let coeff = datavec[deg];
-        let mut ret_rq = vec![Zq::zero(); deg+1];
+        let mut ret_rq = vec![Zq::zero(); deg + 1];
         ret_rq[deg] = coeff;
         Rq::new(ret_rq)
     }
@@ -339,8 +325,8 @@ impl Rq {
         let data_len = coefficients.len();
         let valid_coeffs = coefficients[..min(data_len, D as usize)].to_vec();
         // TODO fix this cloning
-        let sliced_poly : Polynomial<Zq> = Polynomial::new(valid_coeffs.clone());
-        let mut reduced_rq : Rq = Rq(sliced_poly);
+        let sliced_poly: Polynomial<Zq> = Polynomial::new(valid_coeffs.clone());
+        let mut reduced_rq: Rq = Rq(sliced_poly);
         if data_len <= (D as usize) {
             //println!("valid coeffs... {:?}", valid_coeffs);
             //println!("reduced r_q... {}", reduced_rq);
@@ -348,14 +334,14 @@ impl Rq {
         }
 
         for deg in (D as usize)..data_len {
-            let term : Zq = (&coefficients)[deg].clone();
+            let term: Zq = (&coefficients)[deg].clone();
             // reduce the degree (which is > D) by dividing it by D
             let factor = (-1i128).pow((deg / D as usize) as u32); // TODO too big ints?
             let new_deg = deg % (D as usize);
 
-            let mut term_poly_data = vec![Zq::zero(); new_deg+1];
-            term_poly_data[new_deg] = term*factor;
-            let term_poly : Rq = Rq::new(term_poly_data);
+            let mut term_poly_data = vec![Zq::zero(); new_deg + 1];
+            term_poly_data[new_deg] = term * factor;
+            let term_poly: Rq = Rq::new(term_poly_data);
             reduced_rq = &reduced_rq + &term_poly;
         }
         reduced_rq
@@ -366,32 +352,27 @@ impl Rq {
         // Custom multiplication logic.
         // We need to reduce by (X^d+1)
         // TODO add NTT logic here later.
-        
+
+        /*
         if NTT_ENABLED.load(AtomicOrdering::SeqCst) {
             let lhs_data = transform_slice_zq_to_u64((&lhs.0).data());
             let rhs_data = transform_slice_zq_to_u64((&rhs.0).data());
-            let mut prod : Vec<u64> = vec![0; D as usize];
-            
+            let mut prod: Vec<u64> = vec![0; D as usize];
+
             (*PLAN).negacyclic_polymul(&mut prod, &lhs_data, &rhs_data);
         }
+        */
 
-
-        let prod : Polynomial<Zq> = &lhs.0 * &rhs.0;
+        let prod: Polynomial<Zq> = &lhs.0 * &rhs.0;
         Rq::new(prod.data().to_vec())
     }
 }
-
 
 fn transform_slice_zq_to_u64(slice: &[Zq]) -> Vec<u64> {
     slice.iter().map(|z| u64::from(z)).collect()
 }
 
-
-
-
-
 impl Zero for Rq {
-
     fn zero() -> Self {
         Rq::new(vec![])
     }
@@ -399,14 +380,13 @@ impl Zero for Rq {
     fn is_zero(&self) -> bool {
         self.0.is_zero()
     }
-
 }
 
 impl std::ops::Add for Rq {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let sum : Polynomial<Zq> = self.0 + rhs.0;
+        let sum: Polynomial<Zq> = self.0 + rhs.0;
         let sum_rq = Rq(sum);
         sum_rq
     }
@@ -416,19 +396,17 @@ impl std::ops::Add<&Rq> for Rq {
     type Output = Self;
 
     fn add(self, rhs: &Rq) -> Self::Output {
-        let sum : Polynomial<Zq> = self.0 + &rhs.0;
+        let sum: Polynomial<Zq> = self.0 + &rhs.0;
         let sum_rq = Rq(sum);
         sum_rq
     }
 }
 
-
-
 impl std::ops::Sub for Rq {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let sum : Polynomial<Zq> = self.0 - rhs.0;
+        let sum: Polynomial<Zq> = self.0 - rhs.0;
         let sum_rq = Rq(sum);
         sum_rq
     }
@@ -438,7 +416,7 @@ impl std::ops::Mul for Rq {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Rq::multiply(&self, &rhs) 
+        Rq::multiply(&self, &rhs)
     }
 }
 
@@ -446,7 +424,7 @@ impl std::ops::Mul<&Rq> for Rq {
     type Output = Self;
 
     fn mul(self, rhs: &Rq) -> Self::Output {
-        Rq::multiply(&self, rhs) 
+        Rq::multiply(&self, rhs)
     }
 }
 
@@ -454,7 +432,7 @@ impl std::ops::Add for &Rq {
     type Output = Rq;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let sum : Polynomial<Zq> = &self.0 + &rhs.0;
+        let sum: Polynomial<Zq> = &self.0 + &rhs.0;
         let sum_rq = Rq(sum);
         sum_rq
     }
@@ -464,7 +442,7 @@ impl std::ops::Add<Rq> for &Rq {
     type Output = Rq;
 
     fn add(self, rhs: Rq) -> Self::Output {
-        let sum : Polynomial<Zq> = &self.0 + rhs.0;
+        let sum: Polynomial<Zq> = &self.0 + rhs.0;
         let sum_rq = Rq(sum);
         sum_rq
     }
@@ -474,25 +452,23 @@ impl std::ops::Sub for &Rq {
     type Output = Rq;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let minus : Polynomial<Zq> = &self.0 - &rhs.0;
+        let minus: Polynomial<Zq> = &self.0 - &rhs.0;
         let minus_rq = Rq(minus);
         minus_rq
     }
 }
 
 impl std::ops::Mul for &Rq {
-
     type Output = Rq;
-        
+
     fn mul(self, rhs: Self) -> Self::Output {
         Rq::multiply(self, &rhs)
     }
 }
 
 impl std::ops::Mul<Rq> for &Rq {
-
     type Output = Rq;
-        
+
     fn mul(self, rhs: Rq) -> Self::Output {
         Rq::multiply(self, &rhs)
     }
@@ -504,15 +480,12 @@ impl PartialEq for Rq {
     }
 }
 
-
 impl fmt::Display for Rq {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         //println!("DISPLAYING!! :) {:?}", self.0.data().to_vec());
         write!(f, "{}", self.0.pretty("x"))
     }
 }
-
-
 
 // Proptest trait implementations...
 //
@@ -534,13 +507,8 @@ impl Arbitrary for Rq {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        prop::collection::vec(any::<Zq>(), D as usize) 
+        prop::collection::vec(any::<Zq>(), D as usize)
             .prop_map(Rq::new)
             .boxed()
     }
 }
-
-
-
-
-
