@@ -6,7 +6,7 @@ use labrador_snark::verification::*;
 use labrador_snark::proofgen::*;
 use labrador_snark::util::*;
 use core::time::Duration;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering as AtomicOrdering;
 
 fn bench_labrador_perf(c: &mut Criterion) {
     let mut group = c.benchmark_group(

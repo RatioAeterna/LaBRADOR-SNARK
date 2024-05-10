@@ -12,7 +12,8 @@ pub fn is_verbose() -> bool {
 }
 
 // polynomial degree modulus
-pub const D: usize = 64; // used in the paper
+//pub const D: usize = 64; // used in the paper
+pub const D: usize = 4096; // used in the paper
 
 
 // used for challenge polynomial generation

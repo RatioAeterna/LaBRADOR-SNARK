@@ -304,6 +304,13 @@ impl Rq {
         self.0.data().to_vec()
     }
 
+    // TODO using this is maybe slightly dangerous, since coefficients could potentially be larger
+    // than max u64
+    pub fn raw_coeffs(&self) -> Vec<u64> {
+        let datavec = self.0.data().to_vec();
+        datavec.into_iter().map(|x| x.value as u64).collect()
+    }
+
     pub fn eval(&self, x: Zq) -> Zq {
         self.0.eval(x)
     }
@@ -350,10 +357,9 @@ impl Rq {
     // base multiplication function called from everywhere else
     fn multiply(lhs: &Rq, rhs: &Rq) -> Rq {
         // Custom multiplication logic.
-        // We need to reduce by (X^d+1)
+        // We need to reduce by (X^d+1), which we do in Rq::new()
         // TODO add NTT logic here later.
 
-        /*
         if NTT_ENABLED.load(AtomicOrdering::SeqCst) {
             let lhs_data = transform_slice_zq_to_u64((&lhs.0).data());
             let rhs_data = transform_slice_zq_to_u64((&rhs.0).data());
@@ -361,7 +367,6 @@ impl Rq {
 
             (*PLAN).negacyclic_polymul(&mut prod, &lhs_data, &rhs_data);
         }
-        */
 
         let prod: Polynomial<Zq> = &lhs.0 * &rhs.0;
         Rq::new(prod.data().to_vec())
