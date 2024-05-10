@@ -12,8 +12,8 @@ pub fn is_verbose() -> bool {
 }
 
 // polynomial degree modulus
-//pub const D: usize = 64; // used in the paper
-pub const D: usize = 4096; // used in the paper
+pub const D: usize = 64; // used in the paper
+//pub const D: usize = 4096; // used in the paper
 
 
 // used for challenge polynomial generation
@@ -31,17 +31,91 @@ pub const K: usize = 1;
 // be" but whatever you set it to be.
 pub const L: usize = 1;
 
+
+// NOTES here on what exactly constitutes the set "R_q" / how we properly choose Q
+// for Z[x] / (x^64+1), where D=64...
+//
+// - take a generator of (Z / 128Z)^*
+// - square it -> gives you an element of order 32 in (Z/128Z)^*
+//
+// want that g^2 + 128k to be prime in Z.. any prime of that form works
+
 pub fn find_suitable_prime(start: i128) -> i128 {
-    let mut q = start;
+
+    // first, find a generator of (Z / 2D Z)^*...
+
+    let g = find_generator(2*(D as i128));
+    let base = g*g;
+    
+    println!("generator is... {}", g);
+
+    // now, add 128k for k in Z until we get a prime... and total value is >= start
+    let mut k = ((start - base) as f64 / (2.0 * D as f64)).ceil() as i128; // starting value
+    
+    // TODO slight bug where this is always guaranteed to be larger (fine) but k sometimes one
+    // value higher than it needs to be to start.. rounding error
+    let mut q = base + 128*k;
+    assert!(q >= start, "q not geq requested start value.. inequality bug");
 
     while q < i128::MAX {
+        // TODO does having the 'is_suitable' constraint even help, if we know we're actually using
+        // R_q?
+        /*
         if is_prime(&(q as u128), None).probably() && is_suitable(q) {
             return q;
         }
-        q += 2;
+        */
+        if is_prime(&(q as u128), None).probably() {
+            return q;
+        }
+        q += 128;
+        k += 1;
+        println!("k = {}, q = {}", k, q);
     }
+    println!("value for k: {}", k);
     panic!("Error: No suitable value for Q found!");
 }
+
+
+fn is_generator(g: i128) -> bool {
+    let phi = (D as i128); // Euler's totient function for 2D
+    let mut factors = vec![];
+
+    // Find factors of phi
+    let mut i = 2;
+    let mut n = phi;
+    while i * i <= n {
+        if n % i == 0 {
+            factors.push(i);
+            while n % i == 0 {
+                n /= i;
+            }
+        }
+        i += 1;
+    }
+    if n > 1 {
+        factors.push(n);
+    }
+
+    // Check if g^(phi/factor) != 1 (mod 2D) for all prime factors of phi
+    for factor in factors {
+        if g.pow((phi / factor) as u32) % (2*(D as i128)) == 1 {
+            return false;
+        }
+    }
+    true
+}
+
+fn find_generator(max_val: i128) -> i128 {
+    for g in 1..max_val {
+        if is_generator(g) && (g % 2 == 1){
+            return g;
+        }
+    }
+    0
+}
+
+
 
 // TODO EVENTUALLY we'll want to make sure it actually splits R_q into two irreducible ideals, etc.
 pub fn is_suitable(candidiate_q: i128) -> bool {
