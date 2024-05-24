@@ -1,0 +1,59 @@
+Welcome to the LaBRADOR Proof System!
+Printing runtime-computed constants:
+
+Q: 4481
+STD: 323.81723240124205
+B: 173
+B_1: 66
+B_2: 323
+T_1: 2
+T_2: 3
+GAMMA: 552216.1515348859
+GAMMA_1: 4174.2065114222605
+GAMMA_2: 1598.5993869634756
+BETA_PRIME: 6352.736354029
+Generating Witness Matrix S
+norm sum too big! 273336632379 4294967296
+norm of witness! 3545
+sanity check of witness vals: 20*x+19*x^2+16*x^10+16*x^11+5*x^14+24*x^15+36*x^20+36*x^23+11*x^24+34*x^25+35*x^26+7*x^27+7*x^29+4*x^30+26*x^33+37*x^37+41*x^39+19*x^40+42*x^43+10*x^45+13*x^47+37*x^54+2*x^57+20*x^58+x^60+35*x^63
+Generating Common Reference String (CRS)
+Generating random matrix A
+Generating B matrices
+Generating C matrices
+Generating D matrices
+Generating State
+Generated Aij!
+Generating proof..
+Generating inner Ajtai commitments...
+Computed Inner Ajtai Commitments!
+Generating Gij...
+Finished generating Gij.
+Generating polynomial decomposition of t_i
+Generating polynomial decomposition of g_i
+Generating u_1...
+Computing JL projection...
+Computed projection..
+TOTAL NORM OF JL PROJECTION: 40270.717637012625, 741455.2001894653
+JL Projection complete and accepted
+First aggregation step...
+k=1, upper_bound: 1
+fetching alpha and beta...
+Generating phi final..
+Generating Hij..
+Computing u_2...
+challenge polynomial fetching..
+Filling proof transcript.
+Generated proof!
+Verifying proof..
+starting line 3
+starting line 4
+starting line 6
+starting line 7
+starting line 8
+starting line 9
+starting line 10
+starting line 11
+starting line 12
+starting line 13
+starting line 14
+sum: 86373545, should be less than... 40357259.18380167

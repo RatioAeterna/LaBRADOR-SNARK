@@ -9,6 +9,8 @@ fn polynomial_multiplication(lhs: &Rq, rhs: &Rq) -> Rq {
     return lhs * rhs;
 }
 
+// NOTE: this function doesn't really account for overflow, so it's not really meant to be
+// mathematically precise -- just for algorithm runtime estimation purposes
 fn polynomial_multiplication_raw(lhs: &[u64], rhs: &[u64]) -> Vec<u64> {
     if NTT_ENABLED.load(AtomicOrdering::SeqCst) {
         // Perform NTT-based polynomial multiplication
@@ -24,7 +26,24 @@ fn polynomial_multiplication_raw(lhs: &[u64], rhs: &[u64]) -> Vec<u64> {
                 result[i + j] += a * b;
             }
         }
-        result
+        // Next, add in reduction
+
+        let mut reduced_result : Vec<u64> = vec![0; D];
+
+        let data_len = result.len();
+        for deg in (D as usize)..data_len {
+            let term: u64 = (&result)[deg];
+            // reduce the degree (which is > D) by dividing it by D
+            let factor = (-1i128).pow((deg / D as usize) as u32); // TODO too big ints?
+            let new_deg = deg % (D as usize);
+
+            reduced_result[new_deg] = u64::from(Zq::from(term) * factor);
+        }
+        for deg in 0..(D as usize) {
+            reduced_result[deg] = reduced_result[deg] + result[deg]; 
+        }
+
+        reduced_result
     }
 }
 
@@ -61,5 +80,9 @@ fn bench_ntt_raw(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_ntt_speed, bench_ntt_raw);
+criterion_group! {
+    name = benches;
+    config = Criterion::default().sample_size(1000);
+    targets = bench_ntt_speed, bench_ntt_raw
+}
 criterion_main!(benches);

@@ -3,6 +3,7 @@ use labrador_snark::constants::*;
 use labrador_snark::proofgen::*;
 use labrador_snark::structs::*;
 use labrador_snark::verification::*;
+use labrador_snark::util::*;
 use std::sync::atomic::Ordering;
 
 // TODO also look into using rustfmt with the LSP server, etc.

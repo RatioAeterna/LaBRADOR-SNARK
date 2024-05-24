@@ -1,6 +1,7 @@
 use crate::constants::*;
 use crate::util::*;
 use nalgebra::min;
+use ndarray_linalg::krylov::Coefficients;
 use num_traits::One;
 use num_traits::Zero;
 use polynomial::Polynomial;
@@ -209,6 +210,12 @@ impl From<&Zq> for u64 {
     }
 }
 
+impl From<Zq> for u64 {
+    fn from(item: Zq) -> Self {
+        item.value as u64
+    }
+}
+
 impl From<Zq> for f32 {
     fn from(item: Zq) -> Self {
         item.value as f32
@@ -242,6 +249,18 @@ impl From<f32> for Zq {
 impl From<f64> for Zq {
     fn from(item: f64) -> Self {
         Self::new(item as i128)
+    }
+}
+
+impl From<u64> for Zq {
+    fn from(item: u64) -> Self {
+        Self::new(item as i128)
+    }
+}
+
+impl From<&u64> for Zq {
+    fn from(item: &u64) -> Self {
+        Self::new(*item as i128)
     }
 }
 
@@ -335,8 +354,6 @@ impl Rq {
         let sliced_poly: Polynomial<Zq> = Polynomial::new(valid_coeffs.clone());
         let mut reduced_rq: Rq = Rq(sliced_poly);
         if data_len <= (D as usize) {
-            //println!("valid coeffs... {:?}", valid_coeffs);
-            //println!("reduced r_q... {}", reduced_rq);
             return reduced_rq;
         }
 
@@ -361,11 +378,21 @@ impl Rq {
         // TODO add NTT logic here later.
 
         if NTT_ENABLED.load(AtomicOrdering::SeqCst) {
-            let lhs_data = transform_slice_zq_to_u64((&lhs.0).data());
-            let rhs_data = transform_slice_zq_to_u64((&rhs.0).data());
+            let mut lhs_data = transform_slice_zq_to_u64((&lhs.0).data());
+            let mut rhs_data = transform_slice_zq_to_u64((&rhs.0).data());
             let mut prod: Vec<u64> = vec![0; D as usize];
 
+            while lhs_data.len() < (D as usize) {
+                lhs_data.push(0);
+            }
+            while rhs_data.len() < (D as usize) {
+                rhs_data.push(0);
+            }
+
             (*PLAN).negacyclic_polymul(&mut prod, &lhs_data, &rhs_data);
+            let coefficients = transform_slice_u64_to_zq(&prod);
+            let poly: Polynomial<Zq> = Polynomial::new(coefficients);
+            return Rq(poly);
         }
 
         let prod: Polynomial<Zq> = &lhs.0 * &rhs.0;
@@ -375,6 +402,17 @@ impl Rq {
 
 fn transform_slice_zq_to_u64(slice: &[Zq]) -> Vec<u64> {
     slice.iter().map(|z| u64::from(z)).collect()
+}
+
+fn transform_slice_u64_to_zq_NOREDUCE(slice: &[u64]) -> Vec<Zq> {
+    slice.iter().map(|u| Zq::new(*u as i128)).collect()
+}
+
+// we're doing the two's complement conversion here -- anything 2^63 and above is negative
+// wraparound, all else is positive
+fn transform_slice_u64_to_zq(slice: &[u64]) -> Vec<Zq> {
+    slice.iter().map(|&u| Zq::new(if (u as i128) >= (1i128 << 63) { u as i128 - (1i128 << 64) } else { u as i128 })).collect()
+    //slice.iter().map(|&u| Zq::new(u as i128)).collect()
 }
 
 impl Zero for Rq {

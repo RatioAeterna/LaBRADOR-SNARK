@@ -169,6 +169,10 @@ impl State {
             }
         }
 
+        if is_verbose() {
+            println!("Generated phi!");
+        }
+
         // Next, we need to compute 'b' such that this relation is equal to zero
         // So we compute the values of the relation and work backwards
         let mut a_product: Rq = Rq::new(vec![]);
@@ -191,8 +195,9 @@ impl State {
         }
 
         let b: Rq = &a_product + &phi_product;
-        //println!("Generated b!");
-        //println!("{}\n\n", b);
+        if is_verbose() {
+            println!("Generated b!");
+        }
 
         //println!("A product: {}\n", a_product);
         //println!("phi product: {}", phi_product);

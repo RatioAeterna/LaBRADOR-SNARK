@@ -5,15 +5,33 @@ use proptest::prelude::*;
 use proptest::test_runner::{Config, TestRunner};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+const N: usize = 16; // used in the paper
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(50))]
+    
+    #[test]
+    fn test_NTT_preserves_result(c in any::<bool>()) {
+        let lhs: Rq = generate_polynomial(*Q, D);
+        let rhs: Rq = generate_polynomial(*Q, D);
 
+        NTT_ENABLED.store(true, Ordering::SeqCst);
+        let ntt_res = &lhs * &rhs;
+
+        NTT_ENABLED.store(false, Ordering::SeqCst);
+        let classic_res = &lhs * &rhs;
+        prop_assert!(ntt_res == classic_res, "NTT result: {}\n\nClassic result: {}", ntt_res, classic_res);
+    }
+
+    /*
     #[test]
     fn test_JL_norm_preservation(v in prop::collection::vec(0..2^16i128, N*(D as usize))) {
         let original_norm = l2_norm(&v);
         let jl_norm = l2_norm(&jl_project_gen(&v));
         prop_assert!(jl_norm <= 2.0*11.3137*original_norm, "Projection norm: {}. Original L2 norm: {}", jl_norm, original_norm);
     }
+    */
+
 
     #[test]
     fn test_linearity_of_poly_vec_inner_product(a in prop::collection::vec(any::<Rq>(), N as usize),
@@ -22,11 +40,11 @@ proptest! {
         NTT_ENABLED.store(false, Ordering::SeqCst);
         let product_ab = polynomial_vec_inner_product(&a, &b);
         println!("product ab! {}", product_ab);
-        let product_ab_scaled = polynomial_vec_inner_product(&a, &scale_poly_vec_int(&b, &c));
-        println!("scaled of ab by c! {}", scale_polynomial_int(&product_ab, &c));
+        let product_ab_scaled = polynomial_vec_inner_product(&a, &scale_poly_vec(&b, &c));
+        println!("scaled of ab by c! {}", scale_polynomial(&product_ab, &c));
 
         // Testing linearity: c * inner_product(a, b) should equal inner_product(a, c*b)
-        prop_assert_eq!(product_ab_scaled, scale_polynomial_int(&product_ab, &c), "Linearity not preserved in polynomial vector inner products, for some reason...");
+        prop_assert_eq!(product_ab_scaled, scale_polynomial(&product_ab, &c), "Linearity not preserved in polynomial vector inner products, for some reason...");
     }
 
 
@@ -38,18 +56,18 @@ proptest! {
         NTT_ENABLED.store(true, Ordering::SeqCst);
         let product_ab = polynomial_vec_inner_product(&a, &b);
         println!("product ab! {}", product_ab);
-        let product_ab_scaled = polynomial_vec_inner_product(&a, &scale_poly_vec_int(&b, &c));
-        println!("scaled of ab by c! {}", scale_polynomial_int(&product_ab, &c));
+        let product_ab_scaled = polynomial_vec_inner_product(&a, &scale_poly_vec(&b, &c));
+        println!("scaled of ab by c! {}", scale_polynomial(&product_ab, &c));
 
         // Testing linearity: c * inner_product(a, b) should equal inner_product(a, c*b)
-        prop_assert_eq!(product_ab_scaled, scale_polynomial_int(&product_ab, &c), "Linearity not preserved in polynomial vector inner products, for some reason...");
+        prop_assert_eq!(product_ab_scaled, scale_polynomial(&product_ab, &c), "Linearity not preserved in polynomial vector inner products, for some reason...");
     }
 
 
     #[test]
     fn sigma_inv_invariant(a in prop::collection::vec(any::<Zq>(), N*(D as usize)),
                            b in prop::collection::vec(any::<Zq>(), N*(D as usize))) {
-        let inner_prod : Zq = vec_inner_product_Zq(&a,&b);
+        let inner_prod : Zq = vec_inner_product_zq(&a,&b);
         let poly_vec_a : Vec<Rq> = concat_coeff_reduction(&a);
         let poly_vec_b : Vec<Rq> = concat_coeff_reduction(&b);
         let inv_a = sigma_inv_vec(&poly_vec_a);

@@ -12,8 +12,8 @@ pub fn is_verbose() -> bool {
 }
 
 // polynomial degree modulus
+//pub const D: usize = 64; // used in the paper
 pub const D: usize = 64; // used in the paper
-//pub const D: usize = 4096; // used in the paper
 
 
 // used for challenge polynomial generation
@@ -40,22 +40,29 @@ pub const L: usize = 1;
 //
 // want that g^2 + 128k to be prime in Z.. any prime of that form works
 
+// TODO this generator finding code appears to be broken. For now, we'll just select the closest
+// prime.
 pub fn find_suitable_prime(start: i128) -> i128 {
+    //println!("in here!");
 
     // first, find a generator of (Z / 2D Z)^*...
 
+    /*
     let g = find_generator(2*(D as i128));
+    println!("test 3");
     let base = g*g;
     
     println!("generator is... {}", g);
 
-    // now, add 128k for k in Z until we get a prime... and total value is >= start
+    // now, add 2Dk for k in Z until we get a prime... and total value is >= start
     let mut k = ((start - base) as f64 / (2.0 * D as f64)).ceil() as i128; // starting value
     
     // TODO slight bug where this is always guaranteed to be larger (fine) but k sometimes one
     // value higher than it needs to be to start.. rounding error
-    let mut q = base + 128*k;
+    let mut q = base + 2*(D as i128)*k;
     assert!(q >= start, "q not geq requested start value.. inequality bug");
+    */
+    let mut q = start;
 
     while q < i128::MAX {
         // TODO does having the 'is_suitable' constraint even help, if we know we're actually using
@@ -68,15 +75,70 @@ pub fn find_suitable_prime(start: i128) -> i128 {
         if is_prime(&(q as u128), None).probably() {
             return q;
         }
-        q += 128;
+        /*
+        q += 2*(D as i128);
         k += 1;
         println!("k = {}, q = {}", k, q);
+        */
+        q += 1;
     }
-    println!("value for k: {}", k);
+    //println!("value for k: {}", k);
     panic!("Error: No suitable value for Q found!");
 }
 
+fn mod_exp(base: i128, exp: i128, modulus: i128) -> i128 {
+    let mut result = 1;
+    let mut base = base % modulus;
+    let mut exp = exp;
 
+    while exp > 0 {
+        if exp % 2 == 1 {
+            result = (result * base) % modulus;
+        }
+        exp = exp >> 1;
+        base = (base * base) % modulus;
+    }
+    result
+}
+
+fn is_generator(g: i128) -> bool {
+    let phi = (D as i128); // Euler's totient function for 2D
+    let mut factors = vec![];
+
+    // Find factors of phi
+    let mut i = 2;
+    let mut n = phi;
+    while i * i <= n {
+        if n % i == 0 {
+            factors.push(i);
+            while n % i == 0 {
+                n /= i;
+            }
+        }
+        i += 1;
+    }
+    if n > 1 {
+        factors.push(n);
+    }
+
+    println!("factors: {:?}", factors);
+
+    // Check if g^(phi/factor) != 1 (mod 2D) for all prime factors of phi
+    let modulus = 2 * (D as i128);
+    for factor in factors {
+        println!("mod_exp: {}", mod_exp(g, phi / factor, modulus));
+        if mod_exp(g, phi / factor, modulus) == 1 {
+            println!("returning false");
+            return false;
+        }
+    }
+    true
+}
+
+
+
+
+/*
 fn is_generator(g: i128) -> bool {
     let phi = (D as i128); // Euler's totient function for 2D
     let mut factors = vec![];
@@ -100,21 +162,27 @@ fn is_generator(g: i128) -> bool {
     // Check if g^(phi/factor) != 1 (mod 2D) for all prime factors of phi
     for factor in factors {
         if g.pow((phi / factor) as u32) % (2*(D as i128)) == 1 {
+            println!("returning false");
             return false;
         }
     }
     true
 }
+*/
 
+
+// TODO refactor so this is 'find_odd_generator' and is prioritizing the parity check to save
+// computation
 fn find_generator(max_val: i128) -> i128 {
+    println!("in here 2");
     for g in 1..max_val {
+        println!("g=.. {}", g);
         if is_generator(g) && (g % 2 == 1){
             return g;
         }
     }
     0
 }
-
 
 
 // TODO EVENTUALLY we'll want to make sure it actually splits R_q into two irreducible ideals, etc.
@@ -129,10 +197,7 @@ lazy_static! {
 }
 
 
-
-
 pub static NTT_ENABLED: AtomicBool = AtomicBool::new(false);
-
 pub static MOD_SUSPENSION: AtomicBool = AtomicBool::new(false);
 
 // used for "constants" which cannot be evaluated at compile time
