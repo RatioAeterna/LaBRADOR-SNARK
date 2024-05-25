@@ -21,7 +21,7 @@ impl<'a> Verifier<'a> {
         }
     }
 
-    pub fn verify(&self, st: &State, proof: &Transcript, crs: &CRS) -> bool {
+    pub fn verify(&self, st: &State, proof: &Transcript, crs: &mut CRS) -> bool {
         // LINE 1, LINE 2
         // Enumeration of the state and transcript, respectively, so we don't include here.
         let upper_bound: usize = std::cmp::min(K, (128.0f64 / (*Q as f64).log2()).ceil() as usize);
@@ -265,9 +265,12 @@ impl<'a> Verifier<'a> {
         }
 
         // CHECK 15
-        let lhs = polynomial_matrix_product(&crs.a_mat, &vec_to_column_array(&proof.z))
-            .column(0)
-            .to_vec();
+        let mut lhs : Vec<Rq> = vec![];
+        for kappa_iter in 0..self.constants.KAPPA {
+            let a_mat_row = crs.fetch_next_n(self.constants.N);
+            //println!("Here's an 'a' row! {:?}", &a_mat_row);
+            lhs.push(polynomial_vec_inner_product(&a_mat_row, &proof.z));
+        }
         let mut rhs: Vec<Rq> = vec![];
         for i in 0..self.constants.R {
             let prod = poly_by_poly_vec(&proof.c[i], &proof.t_i_all[i]);
@@ -275,9 +278,14 @@ impl<'a> Verifier<'a> {
                 rhs = gen_empty_poly_vec(prod.len());
             }
             rhs = add_poly_vec(&rhs, &prod);
+            //println!("c_i: {}", &proof.c[i]);
+            //println!("t_i: {:?}", &proof.t_i_all[i]);
         }
 
         if lhs != rhs {
+            //println!("LHS: {:?}", lhs);
+            //println!("RHS: {:?}", rhs);
+            //println!("z: {:?}", &proof.z);
             return false;
         }
 
@@ -292,7 +300,6 @@ impl<'a> Verifier<'a> {
         for i in 0..self.constants.R {
             for j in 0..self.constants.R {
                 rhs = rhs + (&proof.g_mat[[i, j]] * &proof.c[i] * &proof.c[j]);
-                //println!("rhs in comp: {}", rhs);
             }
         }
 
@@ -346,11 +353,11 @@ impl<'a> Verifier<'a> {
         let mut lhs = gen_empty_poly_vec(self.constants.KAPPA_1 as usize);
         for i in 0..self.constants.R {
             for k in 0..(self.constants.T_1 as usize) {
-                let b_ik = crs.b_mat.get(&(i, k)).unwrap();
-                let col_mat = vec_to_column_array(&t_decompositions[i][k]);
-                let prod = polynomial_matrix_product(&b_ik, &col_mat)
-                    .column(0)
-                    .to_vec();
+                let mut prod : Vec<Rq> = vec![];
+                for kappa_iter in 0..self.constants.KAPPA_1 {
+                    let b_ik_row = crs.fetch_next_n(self.constants.KAPPA);
+                    prod.push(polynomial_vec_inner_product(&b_ik_row, &t_decompositions[i][k]))
+                }
                 lhs = add_poly_vec(&prod, &lhs);
             }
         }
@@ -359,7 +366,7 @@ impl<'a> Verifier<'a> {
         for i in 0..self.constants.R {
             for j in i..self.constants.R {
                 for k in 0..(self.constants.T_2 as usize) {
-                    let c_ijk = crs.c_mat.get(&(i, j, k)).unwrap().column(0).to_vec();
+                    let c_ijk = crs.fetch_next_n(self.constants.KAPPA_2);
                     let poly = &g_mat_decompositions[[i, j]][k];
                     let prod = poly_by_poly_vec(poly, &c_ijk);
                     rhs = add_poly_vec(&prod, &rhs);
@@ -382,7 +389,7 @@ impl<'a> Verifier<'a> {
         for i in 0..self.constants.R {
             for j in i..self.constants.R {
                 for k in 0..(self.constants.T_1 as usize) {
-                    let d_ijk_vec = crs.d_mat.get(&(i, j, k)).unwrap().column(0).to_vec();
+                    let d_ijk_vec = crs.fetch_next_n(self.constants.KAPPA_2);
                     let prod = poly_by_poly_vec(&h_mat_decompositions[[i, j]][k], &d_ijk_vec);
                     // NOTE prod.len() = KAPPA_2 (it should at least)
                     u_2_candidate = add_poly_vec(&u_2_candidate, &prod);
@@ -393,6 +400,7 @@ impl<'a> Verifier<'a> {
         if &proof.u_2 != &u_2_candidate {
             return false;
         }
+        crs.reset_offset(); // reset the CRS offset seed in case it is re-used later
         true
     }
 
@@ -430,7 +438,7 @@ impl<'a> Verifier<'a> {
                 coeff_dist.push(Zq::from(2));
             }
         } else {
-            //coeff_dist.push(Zq::from(1));
+            coeff_dist.push(Zq::from(1));
             coeff_dist.push(Zq::from(0));
             //coeff_dist.push(Zq::from(0));
         }

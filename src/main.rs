@@ -53,8 +53,8 @@ fn main() {
         NTT_ENABLED.store(false, Ordering::SeqCst);
     }
 
-    let n : usize = 2;
-    let r : usize = 2;
+    let n : usize = 32;
+    let r : usize = 64;
 
     let constants = RuntimeConstants::new(n, r);
 
@@ -73,7 +73,7 @@ fn main() {
         println!("Generating Common Reference String (CRS)");
     }
 
-    let crs = CRS::new(&constants);
+    let mut crs = CRS::new(&constants);
 
     if is_verbose() {
         println!("Generating State");
@@ -88,7 +88,7 @@ fn main() {
         println!("Generating proof..");
     }
 
-    let proof_transcript: Transcript = prover.proof_gen(&st, &crs);
+    let proof_transcript: Transcript = prover.proof_gen(&st, &mut crs);
 
     if is_verbose() {
         println!("Generated proof!");
@@ -97,7 +97,7 @@ fn main() {
     if is_verbose() {
         println!("Verifying proof..");
     }
-    let res: bool = verifier.verify(&st, &proof_transcript, &crs);
+    let res: bool = verifier.verify(&st, &proof_transcript, &mut crs);
     assert!(res, "Error: Proof Verification Failed");
     if is_verbose() {
         println!("Success: Proof Verified!");

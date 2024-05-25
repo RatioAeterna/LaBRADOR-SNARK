@@ -1,84 +1,85 @@
 use ndarray::Array2;
 use std::collections::HashMap;
 use std::mem;
+use rand::Rng;
+use rand::RngCore;
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng as RandCoreSeedableRng;
 
 use crate::algebraic::*;
 use crate::constants::*;
 use crate::util::*;
 
+
+// NOTE: Consider that for now, whoever is sampling from the CRS has to sample everything in a
+// strict ordering..
+// I.e., you sample the elements of "A" once, then the elements of "B", etc. every polynomial
+// sample is going to increase the offset from the base seed in a predictable way until you reset it.
 pub struct CRS {
-    pub a_mat: Array2<Rq>,
-    pub b_mat: HashMap<(usize, usize), Array2<Rq>>,
-    pub c_mat: HashMap<(usize, usize, usize), Array2<Rq>>,
-    pub d_mat: HashMap<(usize, usize, usize), Array2<Rq>>,
+    // Difference between these two: 'offset_seed' is the running counter that we keep
+    base_seed: [u8; 32],
+    offset_seed: [u8; 32],
 }
 
 impl CRS {
-    // TODO random uniform generation for now... perhaps this warrants something more sophisticated
-    // later.
+
+
+    pub fn random_oracle_gen(&mut self) -> Rq {
+        let mut coefficients : Vec<Zq> = Vec::new();
+
+        for _ in 0..D {
+            coefficients.push(self.generate_random_coeff());
+            self.increment_seed();
+        }
+        // convert coefficient vector to Rq and return
+        Rq::new(coefficients)
+    }
+
+    pub fn reset_offset(&mut self) {
+        self.offset_seed = self.base_seed;
+    }
+
+
+
+    pub fn fetch_next_n(&mut self, n : usize) -> Vec<Rq> {
+        let mut res : Vec<Rq> = Vec::with_capacity(n);
+        for _ in 0..n {
+            res.push(self.random_oracle_gen());
+        }
+        res
+    }
+
+    fn increment_seed(&mut self) {
+        for byte in self.offset_seed.iter_mut().rev() {
+            if *byte == 255 {
+                *byte = 0;
+            } else {
+                *byte += 1;
+                break;
+            }
+        }
+    }
+
+    fn generate_random_coeff(&self) -> Zq {
+        let mut rng = ChaCha20Rng::from_seed(self.offset_seed); // Initialize RNG with a 256-bit seed
+        Zq::from(rng.gen_range(0..*Q))
+    }
+
     pub fn new(constants: &RuntimeConstants) -> Self {
+
+        let mut rng = rand::thread_rng();
+        let mut base_seed = [0u8; 32];
+        rng.fill(&mut base_seed); // Generate a 256-bit base seed
+                                  
         if is_verbose() {
-            println!("Generating random matrix A");
-        }
-        let a_mat = generate_random_matrix(constants.KAPPA, constants.N, *Q, D);
-        /*
-        for i in 0..KAPPA {
-            for j in 0..N {
-                println!("A val at i={}, j={}: {}", i, j, &A_mat[[i,j]]);
-            }
-        }
-        */
-        let mut b_mat: HashMap<(usize, usize), Array2<Rq>> = HashMap::new();
-        let mut c_mat: HashMap<(usize, usize, usize), Array2<Rq>> = HashMap::new();
-        let mut d_mat: HashMap<(usize, usize, usize), Array2<Rq>> = HashMap::new();
-
-        if is_verbose() {
-            println!("Generating B matrices");
+            println!("Generated CRS random PRG seed... {:?}", base_seed);
         }
 
-        // TODO maybe put this all in one loop to clean it up, but then again maybe not.
-        // TODO it's technically 1 \leq i \leq j \leq R, i.e., 1..(R+1), but... we're not doing
-        // that, at least for now.
-        for i in 0..constants.R {
-            for k in 0..(constants.T_1 as usize) {
-                let b_ik = generate_random_matrix(constants.KAPPA_1, constants.KAPPA, *Q, D);
-                let index = (i, k);
-                b_mat.insert(index, b_ik);
-            }
-        }
+        let mut offset_seed = base_seed;
 
-        if is_verbose() {
-            println!("Generating C matrices");
-        }
-
-        for i in 0..constants.R {
-            for j in i..constants.R {
-                for k in 0..(constants.T_2 as usize) {
-                    let c_ijk = generate_random_matrix(constants.KAPPA_2, 1, *Q, D);
-                    let index = (i, j, k);
-                    c_mat.insert(index, c_ijk);
-                }
-            }
-        }
-
-        if is_verbose() {
-            println!("Generating D matrices");
-        }
-
-        for i in 0..constants.R {
-            for j in i..constants.R {
-                for k in 0..(constants.T_1 as usize) {
-                    let d_ijk = generate_random_matrix(constants.KAPPA_2, 1, *Q, D);
-                    let index = (i, j, k);
-                    d_mat.insert(index, d_ijk);
-                }
-            }
-        }
         CRS {
-            a_mat,
-            b_mat,
-            c_mat,
-            d_mat,
+            base_seed,
+            offset_seed,
         }
     }
 }

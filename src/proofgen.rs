@@ -26,28 +26,27 @@ impl<'a> Prover<'a> {
         Prover { witness, verifier, constants }
     }
 
-    pub fn proof_gen(&mut self, st: &State, crs: &CRS) -> Transcript {
+    pub fn proof_gen(&mut self, st: &State, crs: &mut CRS) -> Transcript {
         // first, fetch witness dimension (n, r) to use later..
 
 
 
-        let mut t_i_all: Vec<Vec<Rq>> = vec![];
+        let mut t_i_all: Vec<Vec<Rq>> = vec![vec![Rq::zero(); self.constants.KAPPA]; self.constants.R];
 
         if is_verbose() {
             println!("Generating inner Ajtai commitments...");
         }
         // Compute inner Ajtai commitments
-        // t_i = As_i \in Rq^\kappa (should just be m-dimensional)
-        for i in 0..self.constants.R {
-            // TODO this doesn't look nice, fix later
-            let column = self.witness.column(i).to_owned(); // Convert column view to an owned 1D array
-                                                            // TODO this is also bad because you're hardcoding N for now. Fix later.
-            let column_as_2d = column.into_shape((self.constants.N as usize, 1)).unwrap(); // Reshape into 2D array with one column
-            let t_i = polynomial_matrix_product(&crs.a_mat, &column_as_2d)
-                .column(0)
-                .to_vec();
-            t_i_all.push(t_i);
+        for kappa_iter in 0..self.constants.KAPPA {
+            let a_mat_row = crs.fetch_next_n(self.constants.N);
+
+            for i in 0..self.constants.R {
+                let s_i = self.witness.column(i).to_vec();
+                let t_i_elem = polynomial_vec_inner_product(&a_mat_row, &s_i);
+                t_i_all[i][kappa_iter] = t_i_elem;
+            }
         }
+        
         if is_verbose() {
             println!("Computed Inner Ajtai Commitments!");
         }
@@ -77,14 +76,18 @@ impl<'a> Prover<'a> {
         }
         let mut lhs = gen_empty_poly_vec(self.constants.KAPPA_1 as usize);
         for i in 0..self.constants.R {
+            println!("i = {}", &i);
             let t_i_decomposed: Vec<Vec<Rq>> = decompose_polynomial_vec(&t_i_all[i], self.constants.B_1, self.constants.T_1);
             for k in 0..(self.constants.T_1 as usize) {
-                let b_ik = crs.b_mat.get(&(i, k)).unwrap();
-                let t_mat = vec_to_column_array(&t_i_decomposed[k]);
-                // NOTE this line might look somewhat confusing, but consider that the matrix
-                // product is just a KAPPA_1 x 1 Array2 (which we turn into a vec by taking that
-                // first column
-                let prod = polynomial_matrix_product(b_ik, &t_mat).column(0).to_vec();
+                println!("k = {}", &k);
+
+                let mut prod : Vec<Rq> = vec![];
+                
+                for kappa_iter in 0..self.constants.KAPPA_1 {
+                    let b_ik_row = crs.fetch_next_n(self.constants.KAPPA);
+                    prod.push(polynomial_vec_inner_product(&b_ik_row, &t_i_decomposed[k]))
+                }
+                
                 lhs = add_poly_vec(&prod, &lhs);
             }
         }
@@ -97,7 +100,7 @@ impl<'a> Prover<'a> {
             for j in i..self.constants.R {
                 let g_ij: Vec<Rq> = decompose_polynomial(&g_mat[[i, j]], self.constants.B_2, self.constants.T_2);
                 for k in 0..(self.constants.T_2 as usize) {
-                    let c_ijk = crs.c_mat.get(&(i, j, k)).unwrap().column(0).to_vec();
+                    let c_ijk = crs.fetch_next_n(self.constants.KAPPA_2);
                     let g_ij_k: &Rq = &g_ij[k];
                     let prod = poly_by_poly_vec(g_ij_k, &c_ijk);
                     rhs = add_poly_vec(&prod, &rhs);
@@ -323,10 +326,7 @@ impl<'a> Prover<'a> {
         for i in 0..self.constants.R {
             for j in i..self.constants.R {
                 for k in 0..(self.constants.T_1 as usize) {
-                    // NOTE: the column(0) looks kind of suspect when the whole thing is an Array2
-                    // matrix, but it's actually a column vector, so this is just an easy way to
-                    // fetch this and turn it into a vec.
-                    let d_ijk_vec = crs.d_mat.get(&(i, j, k)).unwrap().column(0).to_vec();
+                    let d_ijk_vec = crs.fetch_next_n(self.constants.KAPPA_2);
                     // TODO I don't think we can just add as such.
                     let dec_hij = decompose_polynomial(&h_mat[[i, j]], self.constants.B_1, self.constants.T_1);
                     let prod = poly_by_poly_vec(&dec_hij[k], &d_ijk_vec);
@@ -362,6 +362,11 @@ impl<'a> Prover<'a> {
         if is_verbose() {
             println!("Filling proof transcript.");
         }
+
+
+        crs.reset_offset(); // we're about to verify the proof, so we need to be able to
+                            // reconstruct the the full CRS deterministically from the base seed.
+
         // TODO fill the proof transcript with all the relevant data and return
         let proof_transcript: Transcript = Transcript {
             u_1,
