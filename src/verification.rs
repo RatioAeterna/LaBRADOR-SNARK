@@ -267,7 +267,7 @@ impl<'a> Verifier<'a> {
         // CHECK 15
         let mut lhs : Vec<Rq> = vec![];
         for kappa_iter in 0..self.constants.KAPPA {
-            let a_mat_row = crs.fetch_next_n(self.constants.N);
+            let a_mat_row = crs.fetch_A_row(kappa_iter);
             //println!("Here's an 'a' row! {:?}", &a_mat_row);
             lhs.push(polynomial_vec_inner_product(&a_mat_row, &proof.z));
         }
@@ -355,7 +355,7 @@ impl<'a> Verifier<'a> {
             for k in 0..(self.constants.T_1 as usize) {
                 let mut prod : Vec<Rq> = vec![];
                 for kappa_iter in 0..self.constants.KAPPA_1 {
-                    let b_ik_row = crs.fetch_next_n(self.constants.KAPPA);
+                    let b_ik_row = crs.fetch_B_ik_row(i, k, kappa_iter);
                     prod.push(polynomial_vec_inner_product(&b_ik_row, &t_decompositions[i][k]))
                 }
                 lhs = add_poly_vec(&prod, &lhs);
@@ -366,7 +366,7 @@ impl<'a> Verifier<'a> {
         for i in 0..self.constants.R {
             for j in i..self.constants.R {
                 for k in 0..(self.constants.T_2 as usize) {
-                    let c_ijk = crs.fetch_next_n(self.constants.KAPPA_2);
+                    let c_ijk = crs.fetch_C_ijk(i, j, k);
                     let poly = &g_mat_decompositions[[i, j]][k];
                     let prod = poly_by_poly_vec(poly, &c_ijk);
                     rhs = add_poly_vec(&prod, &rhs);
@@ -389,7 +389,7 @@ impl<'a> Verifier<'a> {
         for i in 0..self.constants.R {
             for j in i..self.constants.R {
                 for k in 0..(self.constants.T_1 as usize) {
-                    let d_ijk_vec = crs.fetch_next_n(self.constants.KAPPA_2);
+                    let d_ijk_vec = crs.fetch_D_ijk(i,j,k);
                     let prod = poly_by_poly_vec(&h_mat_decompositions[[i, j]][k], &d_ijk_vec);
                     // NOTE prod.len() = KAPPA_2 (it should at least)
                     u_2_candidate = add_poly_vec(&u_2_candidate, &prod);
@@ -400,7 +400,7 @@ impl<'a> Verifier<'a> {
         if &proof.u_2 != &u_2_candidate {
             return false;
         }
-        crs.reset_offset(); // reset the CRS offset seed in case it is re-used later
+        //crs.reset_offset(); // reset the CRS offset seed in case it is re-used later
         true
     }
 

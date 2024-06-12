@@ -53,8 +53,8 @@ fn main() {
         NTT_ENABLED.store(false, Ordering::SeqCst);
     }
 
-    let n : usize = 32;
-    let r : usize = 64;
+    let n : usize = 4;
+    let r : usize = 8;
 
     let constants = RuntimeConstants::new(n, r);
 

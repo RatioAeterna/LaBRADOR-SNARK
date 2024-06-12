@@ -9,6 +9,7 @@ use num_traits::ToPrimitive;
 use num_traits::Zero;
 use rand::Rng;
 use std::sync::atomic::Ordering;
+use rayon::prelude::*;
 
 pub struct Prover<'a> {
     // prover fields
@@ -38,7 +39,7 @@ impl<'a> Prover<'a> {
         }
         // Compute inner Ajtai commitments
         for kappa_iter in 0..self.constants.KAPPA {
-            let a_mat_row = crs.fetch_next_n(self.constants.N);
+            let a_mat_row = crs.fetch_A_row(kappa_iter);
 
             for i in 0..self.constants.R {
                 let s_i = self.witness.column(i).to_vec();
@@ -74,6 +75,8 @@ impl<'a> Prover<'a> {
         if is_verbose() {
             println!("Generating polynomial decomposition of t_i");
         }
+
+        /*
         let mut lhs = gen_empty_poly_vec(self.constants.KAPPA_1 as usize);
         for i in 0..self.constants.R {
             println!("i = {}", &i);
@@ -84,10 +87,46 @@ impl<'a> Prover<'a> {
                 let mut prod : Vec<Rq> = vec![];
                 
                 for kappa_iter in 0..self.constants.KAPPA_1 {
-                    let b_ik_row = crs.fetch_next_n(self.constants.KAPPA);
+                    //let b_ik_row = crs.(self.constants.KAPPA);
+                    let b_ik_row = crs.fetch_B_ik_row(i, k, kappa_iter);
                     prod.push(polynomial_vec_inner_product(&b_ik_row, &t_i_decomposed[k]))
                 }
                 
+                lhs = add_poly_vec(&prod, &lhs);
+            }
+        }
+        */
+
+        // Collect intermediate results in a vector
+        let intermediate_results: Vec<Vec<Vec<Rq>>> = (0..self.constants.R)
+            .into_par_iter()
+            .map(|i| {
+                println!("i = {}", i);
+                let t_i_decomposed: Vec<Vec<Rq>> =
+                    decompose_polynomial_vec(&t_i_all[i], self.constants.B_1, self.constants.T_1);
+
+                (0..(self.constants.T_1 as usize))
+                    .into_par_iter()
+                    .map(|k| {
+                        println!("k = {}", k);
+
+                        let prod: Vec<Rq> = (0..self.constants.KAPPA_1)
+                            .map(|kappa_iter| {
+                                let b_ik_row = crs.fetch_B_ik_row(i, k, kappa_iter);
+                                polynomial_vec_inner_product(&b_ik_row, &t_i_decomposed[k])
+                            })
+                            .collect();
+
+                        prod
+                    })
+                    .collect()
+            })
+            .collect();
+
+        // Sequentially combine the results
+        let mut lhs = gen_empty_poly_vec(self.constants.KAPPA_1 as usize);
+        for results in intermediate_results {
+            for prod in results {
                 lhs = add_poly_vec(&prod, &lhs);
             }
         }
@@ -100,7 +139,7 @@ impl<'a> Prover<'a> {
             for j in i..self.constants.R {
                 let g_ij: Vec<Rq> = decompose_polynomial(&g_mat[[i, j]], self.constants.B_2, self.constants.T_2);
                 for k in 0..(self.constants.T_2 as usize) {
-                    let c_ijk = crs.fetch_next_n(self.constants.KAPPA_2);
+                    let c_ijk = crs.fetch_C_ijk(i,j,k);
                     let g_ij_k: &Rq = &g_ij[k];
                     let prod = poly_by_poly_vec(g_ij_k, &c_ijk);
                     rhs = add_poly_vec(&prod, &rhs);
@@ -326,7 +365,7 @@ impl<'a> Prover<'a> {
         for i in 0..self.constants.R {
             for j in i..self.constants.R {
                 for k in 0..(self.constants.T_1 as usize) {
-                    let d_ijk_vec = crs.fetch_next_n(self.constants.KAPPA_2);
+                    let d_ijk_vec = crs.fetch_D_ijk(i,j,k);
                     // TODO I don't think we can just add as such.
                     let dec_hij = decompose_polynomial(&h_mat[[i, j]], self.constants.B_1, self.constants.T_1);
                     let prod = poly_by_poly_vec(&dec_hij[k], &d_ijk_vec);
@@ -364,7 +403,7 @@ impl<'a> Prover<'a> {
         }
 
 
-        crs.reset_offset(); // we're about to verify the proof, so we need to be able to
+        //crs.reset_offset(); // we're about to verify the proof, so we need to be able to
                             // reconstruct the the full CRS deterministically from the base seed.
 
         // TODO fill the proof transcript with all the relevant data and return

@@ -7,6 +7,7 @@ use num_traits::Zero;
 use std::clone::Clone;
 use concrete_ntt::native64::Plan32;
 use concrete_ntt::prime64::Plan;
+use rayon::prelude::*;
 
 use crate::algebraic::*;
 use crate::constants::*;
@@ -499,20 +500,9 @@ pub fn polynomial_vec_inner_product(v1: &[Rq], v2: &[Rq]) -> Rq {
         v1.len(),
         v2.len()
     );
-    //println!("\n\nNew Inner product!");
     let mut result = Rq::new(vec![]);
     for i in 0..v1.len() {
         let product = &v1[i] * &v2[i];
-        /*
-        if (product == Rq::new(vec![])) {
-            println!("PRODUCT ZERO!");
-            println!("v1: {}", &v1[i]);
-            println!("v2: {}", &v2[i]);
-        }
-        else {
-            println!("NOT ZERO!!!");
-        }
-        */
         result = result + product;
     }
     result
