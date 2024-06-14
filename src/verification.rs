@@ -7,6 +7,7 @@ use crate::constants::*;
 use crate::structs::*;
 use crate::util::*;
 use num_traits::Zero;
+use rayon::prelude::*;
 
 pub struct Verifier<'a> {
     b_prime: Option<Vec<Zq>>,
@@ -350,6 +351,7 @@ impl<'a> Verifier<'a> {
         }
         // CHECK 19
         //let mut u_1_candidate : Vec<Rq> = vec![Rq::new(vec![]); KAPPA_1 as usize];
+        /*
         let mut lhs = gen_empty_poly_vec(self.constants.KAPPA_1 as usize);
         for i in 0..self.constants.R {
             for k in 0..(self.constants.T_1 as usize) {
@@ -358,6 +360,32 @@ impl<'a> Verifier<'a> {
                     let b_ik_row = crs.fetch_B_ik_row(i, k, kappa_iter);
                     prod.push(polynomial_vec_inner_product(&b_ik_row, &t_decompositions[i][k]))
                 }
+                lhs = add_poly_vec(&prod, &lhs);
+            }
+        }
+        */
+        let intermediate_results: Vec<Vec<Vec<Rq>>> = (0..self.constants.R)
+            .into_par_iter()
+            .map(|i| {
+                (0..self.constants.T_1 as usize)
+                    .into_par_iter()
+                    .map(|k| {
+                        let prod: Vec<Rq> = (0..self.constants.KAPPA_1)
+                            .map(|kappa_iter| {
+                                let b_ik_row = crs.fetch_B_ik_row(i, k, kappa_iter);
+                                polynomial_vec_inner_product(&b_ik_row, &t_decompositions[i][k])
+                            })
+                            .collect();
+                        prod
+                    })
+                    .collect()
+            })
+            .collect();
+
+        // Sequentially combine the results
+        let mut lhs = gen_empty_poly_vec(self.constants.KAPPA_1 as usize);
+        for results in intermediate_results {
+            for prod in results {
                 lhs = add_poly_vec(&prod, &lhs);
             }
         }
