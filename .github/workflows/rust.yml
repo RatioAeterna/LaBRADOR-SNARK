@@ -18,7 +18,9 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-    - name: Build and Run
+    - name: Set threads environment variable for Rayon
+      run: echo "RAYON_NUM_THREADS=1" >> $GITHUB_ENV
+    - name: Build and Run with a single thread
       run: |
         cargo build --verbose
-        cargo run
+        cargo run --release -- --ntt
