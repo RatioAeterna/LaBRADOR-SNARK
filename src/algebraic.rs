@@ -8,6 +8,8 @@ use polynomial::Polynomial;
 use std::cmp::Ordering;
 use std::fmt;
 use std::sync::atomic::Ordering as AtomicOrdering;
+use bincode;
+use serde::{Serialize, Serializer};
 
 //#[cfg(test)]
 use proptest::prelude::*;
@@ -19,7 +21,7 @@ use proptest::prelude::*;
  */
 
 // The ring of integers modulo q (Q in constants.rs)
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialOrd)]
+#[derive(Serialize, Clone, Copy, Debug, Eq, Ord, PartialOrd)]
 pub struct Zq {
     value: i128,
 }
@@ -294,6 +296,8 @@ impl PartialOrd<i128> for Zq {
     }
 }
 
+
+
 // Wrapper for Polynomial<Zq> which specifically uses
 // properties of Rq, aka Z[q]/(X^d+1)
 #[derive(Clone, Debug)]
@@ -413,6 +417,15 @@ fn transform_slice_u64_to_zq_NOREDUCE(slice: &[u64]) -> Vec<Zq> {
 fn transform_slice_u64_to_zq(slice: &[u64]) -> Vec<Zq> {
     slice.iter().map(|&u| Zq::new(if (u as i128) >= (1i128 << 63) { u as i128 - (1i128 << 64) } else { u as i128 })).collect()
     //slice.iter().map(|&u| Zq::new(u as i128)).collect()
+}
+
+impl Serialize for Rq {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.data_vec().serialize(serializer)
+    }
 }
 
 impl Zero for Rq {

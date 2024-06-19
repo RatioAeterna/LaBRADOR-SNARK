@@ -1,3 +1,4 @@
+use flate2::CompressError;
 use ndarray::Array2;
 use std::collections::HashMap;
 use std::mem;
@@ -6,10 +7,17 @@ use rand::RngCore;
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng as RandCoreSeedableRng;
 use num_bigint::BigUint;
+use std::io::Write;
+use std::fs::File;
+use std::io::prelude::*;
 
 use crate::algebraic::*;
 use crate::constants::*;
 use crate::util::*;
+
+use bincode;
+use serde::Serialize;
+use flate2::{Compression, write::GzEncoder};
 
 
 // NOTE: Consider that for now, whoever is sampling from the CRS has to sample everything in a
@@ -168,6 +176,7 @@ impl<'a> CRS<'a> {
     }
 }
 
+#[derive(Serialize)]
 pub struct Transcript {
     // fields (see protocol)
     pub u_1: Vec<Rq>,
@@ -188,24 +197,61 @@ pub struct Transcript {
 
 impl Transcript {
     pub fn size_in_bytes(&self) -> usize {
-        let mut size = 0;
-        size += mem::size_of_val(&self.u_1);
-        size += mem::size_of_val(&self.pi_i_all);
-        size += mem::size_of_val(&self.projection);
-        size += mem::size_of_val(&self.psi);
-        size += mem::size_of_val(&self.omega);
-        size += mem::size_of_val(&self.b_prime_prime);
-        size += mem::size_of_val(&self.alpha);
-        size += mem::size_of_val(&self.beta);
-        size += mem::size_of_val(&self.u_2);
-        size += mem::size_of_val(&self.c);
-        size += mem::size_of_val(&self.z);
-        size += mem::size_of_val(&self.t_i_all);
-        size += mem::size_of_val(&self.g_mat);
-        size += mem::size_of_val(&self.h_mat);
-        size
+        let serialized = bincode::serialize(&self).unwrap();
+        // Compress the serialized data, to get an idea of the 'real world' size.
+        let mut encoder = GzEncoder::<Vec<u8>>::new(Vec::new(), Compression::best());
+        encoder.write_all(&serialized);
+        let compressed_res = encoder.finish().unwrap();
+
+        compressed_res.len()
     }
 }
+
+fn size_of_Rq() -> usize {
+    let vec_size = mem::size_of::<Vec<Zq>>();
+    let heap_size = mem::size_of::<Zq>()*D;
+
+    vec_size + heap_size
+}
+
+fn size_of_Zq() -> usize {
+    mem::size_of::<Zq>()
+}
+
+fn size_of_vec_Rq(vec: &Vec<Rq>) -> usize {
+    mem::size_of_val(vec) + (vec.len() * size_of_Rq())
+}
+
+fn size_of_vec_Zq(vec: &Vec<Zq>) -> usize {
+    mem::size_of_val(vec) + (vec.len() * size_of_Zq())
+}
+
+fn size_of_nested_vec_Rq(nested_vec: &Vec<Vec<Rq>>) -> usize {
+    let mut size = mem::size_of_val(nested_vec);
+    for inner_vec in nested_vec {
+        size += mem::size_of_val(inner_vec) + (inner_vec.len() * size_of_Rq());
+    }
+    size
+}
+
+fn size_of_nested_vec_Zq(nested_vec: &Vec<Vec<Zq>>) -> usize {
+    let mut size = mem::size_of_val(nested_vec);
+    for inner_vec in nested_vec {
+        size += mem::size_of_val(inner_vec) + (inner_vec.len() * size_of_Zq());
+    }
+    size
+}
+
+fn size_of_array2<T>(array: &Array2<T>) -> usize {
+    let element_size = size_of_Rq();
+    let num_elements = array.len();
+    let data_size = element_size * num_elements;
+    let structure_size = mem::size_of_val(array);
+
+    structure_size + data_size
+}
+
+
 
 pub struct State {
     // This is how we store the families of functions F and F'...
