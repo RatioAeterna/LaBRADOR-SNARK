@@ -97,8 +97,14 @@ impl<'a> CRS<'a> {
         let size_B_mat = BigUint::from(self.constants.KAPPA_1 * self.constants.KAPPA);
         let num_B_matrices = BigUint::from(self.constants.R * self.constants.T_1 as usize);
 
-        // figure out how far into C we are..
-        let offset_C = BigUint::from(k + (self.constants.T_1 as usize)*(i*self.constants.R - i*(i-1)/2 + (j-i)));
+        // Calculate the offset for the i > 0 case
+        let sum_pairs: usize = if i > 0 {
+            i * self.constants.R - i * (i - 1) / 2
+        } else {
+            0
+        };
+        let offset_C = BigUint::from(k + (self.constants.T_1 as usize) * (sum_pairs + (j - i)));
+
         let increment = offset_A + num_B_matrices*size_B_mat*D + offset_C*BigUint::from(self.constants.KAPPA_2*D);
 
         let offset_seed_bigint = base_seed_bigint + increment;
@@ -121,7 +127,14 @@ impl<'a> CRS<'a> {
         let num_C_matrices = BigUint::from(self.constants.R * (self.constants.R + 1)/2);
 
         // figure out how far into D we are...
-        let offset_D = BigUint::from(k + (self.constants.T_1 as usize)*(i*self.constants.R - i*(i-1)/2 + (j-i)));
+        // Calculate the offset for the i > 0 case
+        let sum_pairs: usize = if i > 0 {
+            i * self.constants.R - i * (i - 1) / 2
+        } else {
+            0
+        };
+        let offset_D = BigUint::from(k + (self.constants.T_1 as usize) * (sum_pairs + (j - i)));
+
         let increment = offset_A + num_B_matrices*size_B_mat*D + num_C_matrices*BigUint::from(self.constants.KAPPA_2*D) + offset_D*BigUint::from(self.constants.KAPPA_2*D);
 
         let offset_seed_bigint = base_seed_bigint + increment;

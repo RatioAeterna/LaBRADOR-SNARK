@@ -228,8 +228,6 @@ impl<'a> Verifier<'a> {
             println!("starting line 14");
         }
         // LINE 14
-        // TODO Yes, we can flatten a number of these loops. Just want to get the protocol down
-        // now, will save on computation later.
         let mut sum: f64 = 0.0;
         for i in 0..2 {
             sum += vec_poly_norm_squared(&z_decompositions[i]);
@@ -255,9 +253,16 @@ impl<'a> Verifier<'a> {
                 }
             }
         }
-        //println!("sum: {}, should be less than... {}", sum, (*BETA_PRIME).powi(2));
+        /*
+        println!("sum: {}, should be less than... {}", sum, (self.constants.BETA_PRIME).powi(2));
 
         if sum > (self.constants.BETA_PRIME).powi(2) {
+            return false;
+        }
+        */
+        println!("sum: {}, should be less than... {}", sum, self.constants.BETA_PRIME);
+
+        if sum > self.constants.BETA_PRIME {
             return false;
         }
 

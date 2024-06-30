@@ -193,9 +193,9 @@ pub fn is_suitable(candidiate_q: i128) -> bool {
 lazy_static! {
     // modulus of the ring of integers
     pub static ref Q: i128 = find_suitable_prime((1<<13)-1);
+    //pub static ref Q: i128 = find_suitable_prime((1<<32)-1);
     pub static ref PLAN: Plan32 = Plan32::try_new(D as usize).unwrap();
 }
-
 
 pub static NTT_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static MOD_SUSPENSION: AtomicBool = AtomicBool::new(false);
@@ -209,7 +209,7 @@ pub struct RuntimeConstants {
     // setting bound for SIS 2-norm
     // See Theorem 5.1 for description of upper bound..
     pub BETA_BOUND: i128,
-    // standard deviuation of the Z_q coefficients of the vectors s_i..
+    // standard deviation of the Z_q coefficients of the vectors s_i..
     // referred to as Gothic script s in section 5.4
     pub STD: f64,
     pub B: i128,
@@ -239,17 +239,26 @@ impl RuntimeConstants {
         let KAPPA_2 : usize = N*D;
 
         let BETA_BOUND : i128 = ((30.0/128.0 as f64).sqrt()*(*Q as f64)/125.0).floor() as i128;
-        let STD : f64 = (BETA_BOUND as f64) / ((((R*N) as f64)*D as f64).sqrt());
+        let STD : f64 = (BETA_BOUND as f64) / ((R*N*D) as f64).sqrt();
         let B : i128 = (((((12.*(R as f64)*TAU).sqrt()) as f64)*(STD)).sqrt()).round() as i128;
         let T_1 : i128 = ((*Q as f64).log2() / (B as f64).log2()).round() as i128;
         let B_1 : i128 = (*Q as f64).powf((1.0 / (T_1 as f64)) as f64) as i128;
         let T_2 : i128 = (((24.*(N*D) as f64).sqrt()*((STD).powi(2))).log2() / (B as f64).log2()).round() as i128;
-        let B_2 : i128 = ((((25*(N*D)) as f64).sqrt()*(STD.powi(2))).powf(1.0 / (T_2 as f64))).round() as i128;
+        let B_2 : i128 = ((((24*(N*D)) as f64).sqrt()*(STD.powi(2))).powf(1.0 / (T_2 as f64))).round() as i128;
+
+        // NOTE.. all of these are SQUARED gamma, gamma_1, etc.
+        let GAMMA : f64 = ((BETA_BOUND*BETA_BOUND) as f64) * TAU;
+        let GAMMA_1 : f64 = (((B_1 as f64).powi(2)*(T_1 as f64)) / 12.0)*(R as f64)*(KAPPA as f64)*(D as f64) + (((B_2 as f64).powi(2)*(T_2 as f64)) / 12.0)*((((R as f64).powi(2)+(R as f64)) as f64)/2.0)*(D as f64);
+        let GAMMA_2 : f64 = (((B_1 as f64).powi(2)*(T_1 as f64)) / 12.0)*(((R as f64).powi(2)+(R as f64))/2.0)*(D as f64);
+        // NOTE... this is ACTUALLY beta prime squared!
+        let BETA_PRIME : f64 = (((2.0/(B as f64).powi(2)) as f64)*GAMMA + GAMMA_1 + GAMMA_2);
+        /*
         let GAMMA : f64 = (BETA_BOUND as f64) * TAU.sqrt();
-        let GAMMA_1 : f64 = ((((B_1 as f64).powi(2)*(T_1 as f64)) / 12.0)*(R as f64)*(KAPPA as f64)*(D as f64) + (((B_1 as f64).powi(2)*(T_1 as f64)) / 12.0)*((((R as f64).powi(2)+(R as f64)) as f64)/2.0)*(D as f64)).sqrt();
+        let GAMMA_1 : f64 = ((((B_1 as f64).powi(2)*(T_1 as f64)) / 12.0)*(R as f64)*(KAPPA as f64)*(D as f64) + (((B_2 as f64).powi(2)*(T_2 as f64)) / 12.0)*((((R as f64).powi(2)+(R as f64)) as f64)/2.0)*(D as f64)).sqrt();
         let GAMMA_2 : f64 = ((((B_1 as f64).powi(2)*(T_1 as f64)) / 12.0)*(((R as f64).powi(2)+(R as f64))/2.0)*(D as f64)).sqrt();
         let BETA_PRIME : f64 = (((2.0/(B as f64).powi(2)) as f64)*(GAMMA as f64).powi(2) + (GAMMA_1 as f64).powi(2) + (GAMMA_2 as f64).powi(2)).sqrt();
 
+        */
 
         Self { N, R, BETA_BOUND, STD, B, T_1, B_1, T_2, B_2, GAMMA, GAMMA_1, GAMMA_2, BETA_PRIME, KAPPA, KAPPA_1, KAPPA_2 }
     }

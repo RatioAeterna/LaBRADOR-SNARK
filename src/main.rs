@@ -34,12 +34,18 @@ struct Args {
     /// Enable Number Theoretic Transform for faster polynomial multiplication
     #[arg(short, long)]
     ntt: bool,
+
+    /// Run with recursion to simulate reduction from R1CS (and subsequent much larger target
+    /// relation)
+    #[arg(short, long)]
+    recursion: bool,
 }
 
 fn main() {
     let args = Args::parse();
     let verbose: bool = args.verbose;
     let ntt: bool = args.ntt;
+    let recursion: bool = args.recursion;
 
     if verbose {
         let _ = VERBOSE.set(true);
@@ -53,8 +59,8 @@ fn main() {
         NTT_ENABLED.store(false, Ordering::SeqCst);
     }
 
-    let n : usize = 4;
-    let r : usize = 8;
+    let n : usize = 2;
+    let r : usize = 2;
 
     let constants = RuntimeConstants::new(n, r);
 
