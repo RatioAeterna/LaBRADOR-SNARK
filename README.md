@@ -11,3 +11,6 @@ This is still a work-in-progress, though it's nearing completion.
 - [ ] Finish Recursion implementation, ideally benchmark with that 
 - [ ] Fiat-Shamir implementation for non-interactivity
 - [ ] Full ZK implementation
+
+## License
+This project is licensed under the MIT License - see the LICENSE file for details.
